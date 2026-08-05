@@ -7,17 +7,24 @@ name = "albedo-novel-service"
 version = "0.1.0"
 description = "AWS Lambda compatible novel service for Albedo"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "PyJWT[crypto]>=2.10,<3",
+]
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8.2",
+]
+local = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = [
   "src/albedo_novels_core",
   "src/albedo_novels_lambda",
+  "src/albedo_novels_local",
 ]
 
 [tool.pytest.ini_options]
