@@ -10,6 +10,52 @@ This repository is designed as a hexagonal service with two Python packages:
 The auth service remains the source of identity, JWT issuance, and role management.
 This service should validate JWTs statelessly and authorize behavior from token claims.
 
+
+## Local Development (Docker Compose stack)
+
+The shared local stack (MySQL + auth-api + novels-api) lives in the
+[`albedo-infrastructure`](https://github.com/pulbhaba/albedo-infrastructure)
+repository. From a full workspace checkout produced by `repo sync` against
+`albedo-manifest`, run:
+
+```bash
+cd infrastructure
+cp .env.example .env
+docker compose up --build
+```
+
+The novels-api service is built from `../backend/novels` using the
+`Dockerfile` in this repository. The container installs the `local` extra
+(FastAPI + Uvicorn) and runs `python -m albedo_novels_local`, which exposes
+the FastAPI app on port `8000`.
+
+The novels container reads the following environment variables (defaults are
+suitable for the local stack and are pre-populated in
+`albedo-infrastructure/.env.example`):
+
+- `HOST` / `PORT` — bind address for the local HTTP server (Compose sets
+  `PORT=8000`).
+- `AUTH_ISSUER` — issuer claim expected on incoming access tokens. Defaults
+  to `http://auth-api:8080` for the in-stack auth service.
+- `AUTH_AUDIENCE` — audience claim expected on incoming access tokens.
+  Defaults to `albedo-novel-service`.
+- `AUTH_JWKS_URL` — JWKS endpoint used to verify token signatures. Defaults
+  to `http://auth-api:8080/oauth2/jwks`, the in-stack auth-api endpoint.
+
+Override any of these in `infrastructure/.env` to point the novels service at
+an external auth deployment.
+
+Once the stack is up, the local health endpoint mirrors the Lambda adapter:
+
+```bash
+curl http://localhost:8000/health
+# {"status":"ok","service":"albedo-novel-service"}
+```
+
+The `tests/test_local_app.py` and `tests/test_health_handler.py` suites
+assert that the local server returns the same `/health` payload shape as the
+Lambda handler.
+
 ## Lambda Entrypoint
 
 Use this handler when wiring API Gateway to Lambda:
