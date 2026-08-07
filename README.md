@@ -82,9 +82,11 @@ pip install -e ".[local]"
 uvicorn albedo_novels_local.app:app --reload --port 8000
 ```
 
-The public `GET /health` endpoint returns the service health payload. Other
-routes require a bearer token and currently return the planned-route `501`
-response until their core use cases are wired to persistence.
+The public `GET /health` endpoint returns the service health payload. The
+authenticated `GET /novels` endpoint currently serves the deterministic seeded
+DAO data, including drafts, with `limit` and `offset` pagination. Other routes
+return the planned-route `501` response until their core use cases are wired to
+persistence.
 
 For the shared MySQL, auth-api, and novels stack, run Compose from the
 [`albedo-infrastructure`](https://github.com/pulbhaba/albedo-infrastructure)

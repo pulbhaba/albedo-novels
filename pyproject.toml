@@ -23,6 +23,7 @@ local = [
 [tool.hatch.build.targets.wheel]
 packages = [
   "src/albedo_novels_core",
+  "src/albedo_novels_infrastructure",
   "src/albedo_novels_lambda",
   "src/albedo_novels_local",
 ]

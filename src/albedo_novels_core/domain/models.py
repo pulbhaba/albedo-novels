@@ -26,21 +26,37 @@ class UserContext:
 
 
 @dataclass(frozen=True)
+class Author:
+    """A user reference embedded on a novel for display purposes.
+
+    The author lives on the novel so listing responses can render who wrote
+    each book without an extra round trip to the auth service.
+    """
+
+    id: UserId
+    display_name: str
+
+
+@dataclass(frozen=True)
 class Novel:
     id: NovelId
-    owner_id: UserId
     title: str
-    summary: str
-    body: str
+    author: Author
+    cover_image_url: str
     status: NovelStatus
     created_at: str
     updated_at: str
+    owner_id: UserId
 
-    def publish(self, updated_at: str) -> Novel:
+    def publish(self, updated_at: str) -> "Novel":
         return replace(self, status=NovelStatus.PUBLISHED, updated_at=updated_at)
 
     def is_readable_by(self, user: UserContext) -> bool:
-        return self.status == NovelStatus.PUBLISHED or self.owner_id == user.user_id or user.can_publish
+        return (
+            self.status == NovelStatus.PUBLISHED
+            or self.owner_id == user.user_id
+            or user.can_publish
+        )
 
 
 @dataclass(frozen=True)
