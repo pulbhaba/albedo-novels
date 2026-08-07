@@ -36,7 +36,14 @@ def test_health_route_returns_ok() -> None:
 
 
 def test_unknown_route_is_not_implemented() -> None:
-    response = lambda_handler(_event("POST", "/novels/42/publish"), None)
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=object(),
+    ):
+        response = lambda_handler(
+            _event("POST", "/novels/42/publish", headers={"authorization": "Bearer access-token"}),
+            None,
+        )
 
     assert response["statusCode"] == 501
     body = json.loads(response["body"])
@@ -47,7 +54,7 @@ def test_unknown_route_is_not_implemented() -> None:
 
 def test_get_novels_returns_paginated_list_when_authenticated() -> None:
     with patch(
-        "albedo_novels_lambda.auth.JwtVerifier.verify",
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
         return_value=object(),
     ):
         response = lambda_handler(
@@ -81,9 +88,19 @@ def test_get_novels_returns_401_when_bearer_missing() -> None:
     assert json.loads(response["body"])["error"] == "unauthorized"
 
 
+def test_planned_route_returns_401_when_bearer_missing() -> None:
+    response = lambda_handler(_event("POST", "/novels/42/publish"), None)
+
+    assert response["statusCode"] == 401
+    assert json.loads(response["body"]) == {
+        "error": "unauthorized",
+        "message": "A bearer token is required.",
+    }
+
+
 def test_get_novels_clamps_oversized_limit() -> None:
     with patch(
-        "albedo_novels_lambda.auth.JwtVerifier.verify",
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
         return_value=object(),
     ):
         response = lambda_handler(

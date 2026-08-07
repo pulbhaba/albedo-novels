@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Mapping, Protocol
+
+from albedo_novels_core.domain.models import UserContext
+
+
+class Authenticator(Protocol):
+    """Verify request credentials without coupling the core to a JWT library."""
+
+    def authenticate(self, headers: Mapping[str, object]) -> UserContext:
+        ...
 
 from albedo_novels_core.domain.models import Novel, NovelId, UserId
 

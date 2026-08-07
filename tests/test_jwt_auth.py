@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from jwt.exceptions import ExpiredSignatureError
 
-from albedo_novels_lambda.auth import AuthenticationError, JwtConfig, JwtVerifier, bearer_token
+from albedo_novels_infrastructure.auth import AuthenticationError, JwtConfig, JwtVerifier, bearer_token
 
 
 class FakeJwksClient:
@@ -39,7 +39,7 @@ def test_verifier_builds_user_context_from_valid_claims(monkeypatch: pytest.Monk
         assert kwargs["issuer"] == "issuer"
         return {"sub": "reader-1", "roles": ["ROLE_READER", "ROLE_EDITOR"]}
 
-    monkeypatch.setattr("albedo_novels_lambda.auth.jwt.decode", decode)
+    monkeypatch.setattr("albedo_novels_infrastructure.auth.jwt.jwt.decode", decode)
 
     user = JwtVerifier(config, FakeJwksClient()).verify("access-token")
 
@@ -53,7 +53,7 @@ def test_verifier_maps_invalid_tokens_to_authentication_error(monkeypatch: pytes
     def decode(*_args: object, **_kwargs: object) -> None:
         raise ExpiredSignatureError("expired")
 
-    monkeypatch.setattr("albedo_novels_lambda.auth.jwt.decode", decode)
+    monkeypatch.setattr("albedo_novels_infrastructure.auth.jwt.jwt.decode", decode)
 
     with pytest.raises(AuthenticationError, match="invalid or expired"):
         JwtVerifier(config, FakeJwksClient()).verify("access-token")
