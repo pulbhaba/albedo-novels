@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from albedo_novels_core.domain.models import LibraryEntry, Novel, NovelId, UserId
+from albedo_novels_core.domain.models import Novel, NovelId, UserId
 
 
 class NovelRepository(Protocol):
@@ -18,15 +18,25 @@ class NovelRepository(Protocol):
     def list_by_owner(self, owner_id: UserId) -> list[Novel]:
         """List novels owned by one user."""
 
+    def list_all(self, limit: int, offset: int) -> list[Novel]:
+        """List novels regardless of status, paginated by limit/offset.
+
+        Results are ordered deterministically (newest created first, then by
+        stable id) so that a given offset always returns the same items.
+        """
+
+    def count_all(self) -> int:
+        """Return the total number of novels regardless of status."""
+
 
 class LibraryRepository(Protocol):
-    def save(self, entry: LibraryEntry) -> LibraryEntry:
+    def save(self, entry: object) -> object:
         """Persist and return a library entry."""
 
     def delete(self, user_id: UserId, novel_id: NovelId) -> None:
         """Remove one library entry if it exists."""
 
-    def list_by_user(self, user_id: UserId) -> list[LibraryEntry]:
+    def list_by_user(self, user_id: UserId) -> list[object]:
         """List library entries for one user."""
 
 

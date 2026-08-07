@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Sequence
 
-from albedo_novels_core.application.ports import Clock, IdGenerator, LibraryRepository, NovelRepository
+from albedo_novels_core.application.ports import (
+    Clock,
+    IdGenerator,
+    LibraryRepository,
+    NovelRepository,
+)
 from albedo_novels_core.domain.models import (
+    Author,
     LibraryEntry,
     Novel,
     NovelId,
     NovelStatus,
     UserContext,
+    UserId,
 )
 
 
@@ -23,8 +31,35 @@ class ForbiddenError(Exception):
 @dataclass(frozen=True)
 class CreateNovelCommand:
     title: str
-    body: str = ""
+    author: Author
+    cover_image_url: str = ""
     summary: str = ""
+    body: str = ""
+
+
+@dataclass(frozen=True)
+class ListNovelsQuery:
+    """Pagination parameters for the listing use case."""
+
+    limit: int = 20
+    offset: int = 0
+
+
+@dataclass(frozen=True)
+class NovelListPage:
+    """A single page of novels plus the total count."""
+
+    items: Sequence[Novel]
+    total: int
+    limit: int
+    offset: int
+
+
+# Default page size when the caller does not provide one. Kept conservative
+# because /novels is the public listing endpoint and the request is
+# intentionally simple for this first cut.
+DEFAULT_LIST_LIMIT = 20
+MAX_LIST_LIMIT = 100
 
 
 class NovelUseCases:
@@ -44,13 +79,13 @@ class NovelUseCases:
         now = self._clock.utcnow_iso()
         novel = Novel(
             id=NovelId(self._ids.new_id()),
-            owner_id=user.user_id,
             title=command.title,
-            summary=command.summary,
-            body=command.body,
+            author=command.author,
+            cover_image_url=command.cover_image_url,
             status=NovelStatus.DRAFT,
             created_at=now,
             updated_at=now,
+            owner_id=user.user_id,
         )
         return self._novels.save(novel)
 
@@ -74,8 +109,24 @@ class NovelUseCases:
         )
         return self._library.save(entry)
 
+    def list_novels(self, query: ListNovelsQuery) -> NovelListPage:
+        limit, offset = _normalize_pagination(query.limit, query.offset)
+        items = self._novels.list_all(limit=limit, offset=offset)
+        total = self._novels.count_all()
+        return NovelListPage(items=items, total=total, limit=limit, offset=offset)
+
     def _load_novel(self, novel_id: NovelId) -> Novel:
         novel = self._novels.get(novel_id)
         if novel is None:
             raise NotFoundError("Novel was not found.")
         return novel
+
+
+def _normalize_pagination(limit: int, offset: int) -> tuple[int, int]:
+    if limit <= 0:
+        limit = DEFAULT_LIST_LIMIT
+    if limit > MAX_LIST_LIMIT:
+        limit = MAX_LIST_LIMIT
+    if offset < 0:
+        offset = 0
+    return limit, offset
