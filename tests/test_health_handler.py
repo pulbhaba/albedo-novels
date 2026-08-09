@@ -72,13 +72,13 @@ def test_get_novels_returns_paginated_list_when_authenticated() -> None:
     assert set(sample.keys()) == {
         "id",
         "title",
-        "author",
-        "coverImageUrl",
+        "authorId",
+        "isbn",
         "status",
         "createdAt",
         "updatedAt",
     }
-    assert sample["author"] == {"id": "user-1", "displayName": "Asha Lindgren"}
+    assert sample["authorId"] == "user-1"
 
 
 def test_get_novels_returns_401_when_bearer_missing() -> None:

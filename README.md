@@ -88,6 +88,18 @@ DAO data, including drafts, with `limit` and `offset` pagination. Other routes
 return the planned-route `501` response until their core use cases are wired to
 persistence.
 
+## SQLAlchemy persistence
+
+Novel persistence stores lightweight metadata only. The `novels` table contains
+the title, author ID, publication status, ISBN, timestamps, and last modifier;
+covers, introductions, chapters, and full text belong in resource/content
+storage. The schema is in
+`src/albedo_novels_infrastructure/persistence/schema.sql`.
+
+`build_mysql_use_cases()` uses SQLAlchemy with `NOVELS_DB_URL` (default:
+`mysql+mysqlconnector://root:test_pass@localhost:3306/auth`) and implements
+the core novel and library repository ports.
+
 For the shared MySQL, auth-api, and novels stack, run Compose from the
 [`albedo-infrastructure`](https://github.com/pulbhaba/albedo-infrastructure)
 repository. The local server uses `AUTH_ISSUER`, `AUTH_AUDIENCE`, and

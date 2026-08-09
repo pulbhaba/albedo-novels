@@ -6,7 +6,6 @@ application layer.
 from __future__ import annotations
 
 from albedo_novels_core.domain.models import (
-    Author,
     LibraryEntry,
     Novel,
     NovelId,
@@ -16,7 +15,6 @@ from albedo_novels_core.domain.models import (
 )
 
 __all__ = [
-    "Author",
     "LibraryEntry",
     "Novel",
     "NovelId",
