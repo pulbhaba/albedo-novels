@@ -1,9 +1,8 @@
 """In-memory seeded novel DAO used for local development and tests.
 
-This module is intentionally a stand-in for the production MySQL DAO. It
-implements the same `NovelRepository` port so the FastAPI/Lambda adapters and
-the use cases can be wired against it today and swapped for the real
-persistence adapter later without changing the call sites.
+This module is intentionally a local/test stand-in for the production MySQL
+repository. It implements the same `NovelRepository` port so the
+FastAPI/Lambda adapters can run without a database.
 
 The DAO is mutable and process-local. It is **not** safe to share across
 workers. The class is exported under the `dao_test` namespace inside this
@@ -105,7 +104,7 @@ class SeededNovelDao:
 
     Exposed as `dao_test.SeededNovelDao` so production code can wire the real
     MySQL DAO while tests, local development, and the listing endpoint can
-    fall back to this fixture-style implementation.
+    use this fixture-style implementation.
     """
 
     def __init__(self, seeds: Iterable[SeededNovel] | None = None) -> None:

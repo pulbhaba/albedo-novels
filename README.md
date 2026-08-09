@@ -123,5 +123,7 @@ the framework-free core layer.
 
 ## Current Status
 
-The local HTTP adapter and JWT authentication foundation are implemented. Novel persistence and
-the remaining use cases are tracked in [`plan.md`](plan.md).
+The local HTTP adapter, JWT authentication foundation, and MySQL metadata and
+library persistence adapters are implemented. The local and Lambda runners
+continue to use deterministic seeded data until the remaining novel and
+library HTTP use cases are wired to routes.

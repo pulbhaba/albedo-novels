@@ -40,7 +40,7 @@ def build_mysql_use_cases() -> NovelUseCases:
 
 
 class EmptyLibraryRepository:
-    """Stand-in until the MySQL library adapter lands (issue #13)."""
+    """Local-only stand-in for the production library repository."""
 
     def save(self, entry: object) -> object:
         return entry

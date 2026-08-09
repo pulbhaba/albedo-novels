@@ -158,24 +158,28 @@ def _novel_from_row(row: dict[str, Any]) -> Novel:
 
 def _execute(connection_factory: ConnectionFactory, query: str, params: tuple[Any, ...]) -> None:
     connection = connection_factory()
-    cursor = connection.cursor()
     try:
-        cursor.execute(query, params)
-        connection.commit()
+        cursor = connection.cursor()
+        try:
+            cursor.execute(query, params)
+            connection.commit()
+        finally:
+            cursor.close()
     except Exception:
         connection.rollback()
         raise
     finally:
-        cursor.close()
         connection.close()
 
 
 def _fetch_all(connection_factory: ConnectionFactory, query: str, params: tuple[Any, ...]) -> list[dict[str, Any]]:
     connection = connection_factory()
-    cursor = connection.cursor(dictionary=True)
     try:
-        cursor.execute(query, params)
-        return list(cursor.fetchall())
+        cursor = connection.cursor(dictionary=True)
+        try:
+            cursor.execute(query, params)
+            return list(cursor.fetchall())
+        finally:
+            cursor.close()
     finally:
-        cursor.close()
         connection.close()

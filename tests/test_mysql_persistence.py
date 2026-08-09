@@ -41,6 +41,17 @@ class FakeConnection:
         self.closed = True
 
 
+class FailingCursor(FakeCursor):
+    def execute(self, query: str, params: tuple[object, ...]) -> None:
+        super().execute(query, params)
+        raise RuntimeError("database failure")
+
+
+class FailingConnection(FakeConnection):
+    def cursor(self, **_kwargs: object) -> FailingCursor:
+        return FailingCursor(self, self.rows)
+
+
 def test_mysql_novel_repository_maps_metadata_rows() -> None:
     connection = FakeConnection(
         [
@@ -87,3 +98,19 @@ def test_mysql_repositories_write_and_read_library_entries() -> None:
     assert connection.commits == 2
     assert len(connection.queries) == 3
     assert "library_entries" in connection.queries[0][0]
+
+
+def test_mysql_write_rolls_back_and_closes_resources_on_failure() -> None:
+    connection = FailingConnection()
+    repository = MySqlLibraryRepository(lambda: connection)
+    entry = LibraryEntry(UserId("user-1"), NovelId("novel-1"), "now")
+
+    try:
+        repository.save(entry)
+    except RuntimeError as error:
+        assert str(error) == "database failure"
+    else:
+        raise AssertionError("save should propagate database failures")
+
+    assert connection.commits == 0
+    assert connection.closed
