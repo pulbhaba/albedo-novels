@@ -1,16 +1,39 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import os
 from uuid import uuid4
 
 from albedo_novels_core.application import NovelUseCases
 from albedo_novels_infrastructure.persistence.seeded_novel_dao import dao_test
+from albedo_novels_infrastructure.persistence import MySqlLibraryRepository, MySqlNovelRepository
 
 
 def build_use_cases() -> NovelUseCases:
     return NovelUseCases(
         novels=dao_test(),
         library=EmptyLibraryRepository(),
+        ids=UuidIdGenerator(),
+        clock=SystemClock(),
+    )
+
+
+def build_mysql_use_cases() -> NovelUseCases:
+    """Build production use cases using the MySQL persistence adapters."""
+    import mysql.connector
+
+    def connection_factory():
+        return mysql.connector.connect(
+            host=os.getenv("NOVELS_DB_HOST", "localhost"),
+            port=int(os.getenv("NOVELS_DB_PORT", "3306")),
+            database=os.getenv("NOVELS_DB_NAME", "auth"),
+            user=os.getenv("NOVELS_DB_USER", "root"),
+            password=os.getenv("NOVELS_DB_PASSWORD", "test_pass"),
+        )
+
+    return NovelUseCases(
+        novels=MySqlNovelRepository(connection_factory),
+        library=MySqlLibraryRepository(connection_factory),
         ids=UuidIdGenerator(),
         clock=SystemClock(),
     )

@@ -96,6 +96,7 @@ def _materialise(seed: SeededNovel) -> Novel:
         created_at=seed.created_at,
         updated_at=seed.updated_at,
         owner_id=UserId(seed.owner_id),
+        last_modified_user_id=UserId(seed.owner_id),
     )
 
 

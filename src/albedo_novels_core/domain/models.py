@@ -47,9 +47,17 @@ class Novel:
     created_at: str
     updated_at: str
     owner_id: UserId
+    isbn: str | None = None
+    external_code: str | None = None
+    last_modified_user_id: UserId | None = None
 
-    def publish(self, updated_at: str) -> "Novel":
-        return replace(self, status=NovelStatus.PUBLISHED, updated_at=updated_at)
+    def publish(self, updated_at: str, last_modified_user_id: UserId | None = None) -> "Novel":
+        return replace(
+            self,
+            status=NovelStatus.PUBLISHED,
+            updated_at=updated_at,
+            last_modified_user_id=last_modified_user_id or self.last_modified_user_id,
+        )
 
     def is_readable_by(self, user: UserContext) -> bool:
         return (

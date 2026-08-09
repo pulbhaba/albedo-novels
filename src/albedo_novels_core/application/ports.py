@@ -11,7 +11,7 @@ class Authenticator(Protocol):
     def authenticate(self, headers: Mapping[str, object]) -> UserContext:
         ...
 
-from albedo_novels_core.domain.models import Novel, NovelId, UserId
+from albedo_novels_core.domain.models import LibraryEntry, Novel, NovelId, UserId
 
 
 class NovelRepository(Protocol):
@@ -39,13 +39,13 @@ class NovelRepository(Protocol):
 
 
 class LibraryRepository(Protocol):
-    def save(self, entry: object) -> object:
+    def save(self, entry: LibraryEntry) -> LibraryEntry:
         """Persist and return a library entry."""
 
     def delete(self, user_id: UserId, novel_id: NovelId) -> None:
         """Remove one library entry if it exists."""
 
-    def list_by_user(self, user_id: UserId) -> list[object]:
+    def list_by_user(self, user_id: UserId) -> list[LibraryEntry]:
         """List library entries for one user."""
 
 

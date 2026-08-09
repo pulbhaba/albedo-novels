@@ -88,6 +88,18 @@ DAO data, including drafts, with `limit` and `offset` pagination. Other routes
 return the planned-route `501` response until their core use cases are wired to
 persistence.
 
+## MySQL persistence
+
+Novel persistence stores metadata only; novel chapters and other content are
+separate from the `novels` table. The schema for `novels` and
+`library_entries` is in `src/albedo_novels_infrastructure/persistence/schema.sql`.
+Apply it to the configured database before using `build_mysql_use_cases()`.
+
+The MySQL adapter reads `NOVELS_DB_HOST`, `NOVELS_DB_PORT`, `NOVELS_DB_NAME`,
+`NOVELS_DB_USER`, and `NOVELS_DB_PASSWORD` (defaulting to the local Compose
+MySQL values). It implements the core `NovelRepository` and
+`LibraryRepository` ports; the core package does not import the MySQL driver.
+
 For the shared MySQL, auth-api, and novels stack, run Compose from the
 [`albedo-infrastructure`](https://github.com/pulbhaba/albedo-infrastructure)
 repository. The local server uses `AUTH_ISSUER`, `AUTH_AUDIENCE`, and
