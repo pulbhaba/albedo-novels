@@ -113,8 +113,8 @@ def novel_to_dict(novel: Novel) -> dict[str, Any]:
     return {
         "id": novel.id,
         "title": novel.title,
-        "author": {"id": novel.author.id, "displayName": novel.author.display_name},
-        "coverImageUrl": novel.cover_image_url,
+        "authorId": novel.author_id,
+        "isbn": novel.isbn,
         "status": novel.status.value if isinstance(novel.status, NovelStatus) else str(novel.status),
         "createdAt": novel.created_at,
         "updatedAt": novel.updated_at,

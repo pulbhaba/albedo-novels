@@ -10,7 +10,6 @@ from albedo_novels_core.application.ports import (
     NovelRepository,
 )
 from albedo_novels_core.domain.models import (
-    Author,
     LibraryEntry,
     Novel,
     NovelId,
@@ -31,10 +30,8 @@ class ForbiddenError(Exception):
 @dataclass(frozen=True)
 class CreateNovelCommand:
     title: str
-    author: Author
-    cover_image_url: str = ""
-    summary: str = ""
-    body: str = ""
+    author_id: UserId
+    isbn: str | None = None
 
 
 @dataclass(frozen=True)
@@ -80,12 +77,12 @@ class NovelUseCases:
         novel = Novel(
             id=NovelId(self._ids.new_id()),
             title=command.title,
-            author=command.author,
-            cover_image_url=command.cover_image_url,
+            author_id=command.author_id,
             status=NovelStatus.DRAFT,
             created_at=now,
             updated_at=now,
-            owner_id=user.user_id,
+            isbn=command.isbn,
+            last_modified_user_id=user.user_id,
         )
         return self._novels.save(novel)
 
@@ -94,7 +91,10 @@ class NovelUseCases:
             raise ForbiddenError("Publishing requires ROLE_EDITOR or ROLE_ADMIN.")
 
         novel = self._load_novel(novel_id)
-        published = novel.publish(updated_at=self._clock.utcnow_iso())
+        published = novel.publish(
+            updated_at=self._clock.utcnow_iso(),
+            last_modified_user_id=user.user_id,
+        )
         return self._novels.save(published)
 
     def add_favorite(self, user: UserContext, novel_id: NovelId) -> LibraryEntry:

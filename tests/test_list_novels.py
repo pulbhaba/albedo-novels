@@ -13,7 +13,6 @@ from albedo_novels_infrastructure.persistence.seeded_novel_dao import (
     SeededNovel,
 )
 from albedo_novels_core.domain.models import (
-    Author,
     Novel,
     NovelId,
     NovelStatus,
@@ -108,12 +107,11 @@ def test_seeded_dao_round_trips_save_and_get() -> None:
     novel = Novel(
         id=NovelId("novel-xyz"),
         title="Untitled",
-        author=Author(id=UserId("user-1"), display_name="User One"),
-        cover_image_url="https://cdn.albedo.example/covers/untitled.jpg",
+        author_id=UserId("user-1"),
         status=NovelStatus.DRAFT,
         created_at=datetime.now(tz=timezone.utc).isoformat(),
         updated_at=datetime.now(tz=timezone.utc).isoformat(),
-        owner_id=UserId("user-1"),
+        isbn="978-000000010",
     )
 
     saved = dao.save(novel)
@@ -129,23 +127,17 @@ def test_seeded_dao_count_and_list_are_consistent() -> None:
             id="a",
             title="A",
             author_id="u",
-            author_display_name="U",
-            cover_image_url="",
             status=NovelStatus.DRAFT,
             created_at="2026-01-01T00:00:00+00:00",
             updated_at="2026-01-01T00:00:00+00:00",
-            owner_id="u",
         ),
         SeededNovel(
             id="b",
             title="B",
             author_id="u",
-            author_display_name="U",
-            cover_image_url="",
             status=NovelStatus.PUBLISHED,
             created_at="2026-02-01T00:00:00+00:00",
             updated_at="2026-02-01T00:00:00+00:00",
-            owner_id="u",
         ),
     )
 
@@ -154,4 +146,4 @@ def test_seeded_dao_count_and_list_are_consistent() -> None:
     assert dao.count_all() == 2
     assert [novel.id for novel in dao.list_all(limit=10, offset=0)] == ["b", "a"]
     assert dao.list_published()[0].id == "b"
-    assert [novel.id for novel in dao.list_by_owner(UserId("u"))] == ["b", "a"]
+    assert [novel.id for novel in dao.list_by_author(UserId("u"))] == ["b", "a"]

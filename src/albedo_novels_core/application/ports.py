@@ -24,8 +24,8 @@ class NovelRepository(Protocol):
     def list_published(self) -> list[Novel]:
         """List published novels."""
 
-    def list_by_owner(self, owner_id: UserId) -> list[Novel]:
-        """List novels owned by one user."""
+    def list_by_author(self, author_id: UserId) -> list[Novel]:
+        """List novels authored by one user."""
 
     def list_all(self, limit: int, offset: int) -> list[Novel]:
         """List novels regardless of status, paginated by limit/offset.
