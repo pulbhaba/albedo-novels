@@ -115,6 +115,12 @@ class NovelUseCases:
         total = self._novels.count_all()
         return NovelListPage(items=items, total=total, limit=limit, offset=offset)
 
+    def get_novel(self, user: UserContext, novel_id: NovelId) -> Novel:
+        novel = self._load_novel(novel_id)
+        if not novel.is_readable_by(user):
+            raise ForbiddenError("Novel is not readable by the current user.")
+        return novel
+
     def _load_novel(self, novel_id: NovelId) -> Novel:
         novel = self._novels.get(novel_id)
         if novel is None:

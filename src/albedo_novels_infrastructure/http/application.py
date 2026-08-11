@@ -4,9 +4,14 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from albedo_novels_core.application import ListNovelsQuery, NovelUseCases
+from albedo_novels_core.application import (
+    ForbiddenError,
+    ListNovelsQuery,
+    NotFoundError,
+    NovelUseCases,
+)
 from albedo_novels_core.application.ports import Authenticator
-from albedo_novels_core.domain.models import Novel, NovelStatus, UserContext
+from albedo_novels_core.domain.models import Novel, NovelId, NovelStatus, UserContext
 from albedo_novels_infrastructure.auth import AuthenticationError
 from .routes import ROUTES, Route
 
@@ -45,7 +50,7 @@ class HttpApplication:
 
         if route.auth_required:
             try:
-                self._authenticator.authenticate(request.headers)
+                user = self._authenticator.authenticate(request.headers)
             except (AuthenticationError, ValueError) as error:
                 return HttpResponse(
                     401,
@@ -68,6 +73,15 @@ class HttpApplication:
                     "offset": page.offset,
                 },
             )
+        if route.handler == "get_novel":
+            novel_id_raw = request.path_params.get("novel_id") or _last_path_segment(request.path)
+            try:
+                novel = self._use_cases.get_novel(user, NovelId(str(novel_id_raw)))
+            except NotFoundError as error:
+                return HttpResponse(404, {"error": "not_found", "message": str(error)})
+            except ForbiddenError as error:
+                return HttpResponse(403, {"error": "forbidden", "message": str(error)})
+            return HttpResponse(200, novel_to_dict(novel))
         return self._planned_response(request)
 
     @staticmethod
@@ -119,3 +133,7 @@ def novel_to_dict(novel: Novel) -> dict[str, Any]:
         "createdAt": novel.created_at,
         "updatedAt": novel.updated_at,
     }
+
+def _last_path_segment(path: str) -> str:
+    return path.rsplit("/", 1)[-1]
+

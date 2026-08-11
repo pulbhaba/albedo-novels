@@ -110,3 +110,41 @@ def test_get_novels_clamps_oversized_limit() -> None:
 
     assert response["statusCode"] == 200
     assert json.loads(response["body"])["limit"] == 100
+
+
+def test_get_novel_returns_published_novel_payload_when_authenticated() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=object(),
+    ):
+        response = lambda_handler(
+            _event("GET", "/novels/novel-001", headers={"authorization": "Bearer access-token"}),
+            None,
+        )
+
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert body["id"] == "novel-001"
+    assert body["status"] == "published"
+    assert body["authorId"] == "user-1"
+
+
+def test_get_novel_returns_404_for_missing_novel() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=object(),
+    ):
+        response = lambda_handler(
+            _event("GET", "/novels/novel-missing", headers={"authorization": "Bearer access-token"}),
+            None,
+        )
+
+    assert response["statusCode"] == 404
+    assert json.loads(response["body"])["error"] == "not_found"
+
+
+def test_get_novel_returns_401_when_bearer_missing() -> None:
+    response = lambda_handler(_event("GET", "/novels/novel-001"), None)
+
+    assert response["statusCode"] == 401
+    assert json.loads(response["body"])["error"] == "unauthorized"
