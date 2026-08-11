@@ -174,3 +174,43 @@ def test_local_module_exposes_python_module_entrypoint() -> None:
     module = importlib.import_module("albedo_novels_local.__main__")
 
     assert callable(module.uvicorn.run)
+
+
+def test_get_novel_returns_published_novel_payload_when_authenticated() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=object(),
+    ):
+        response = _request(
+            "GET",
+            "/novels/novel-001",
+            headers=_build_event_headers(),
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == "novel-001"
+    assert body["status"] == "published"
+    assert body["authorId"] == "user-1"
+
+
+def test_get_novel_returns_404_for_missing_novel() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=object(),
+    ):
+        response = _request(
+            "GET",
+            "/novels/novel-missing",
+            headers=_build_event_headers(),
+        )
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "not_found"
+
+
+def test_get_novel_returns_401_when_bearer_missing() -> None:
+    response = _request("GET", "/novels/novel-001")
+
+    assert response.status_code == 401
+    assert response.json()["error"] == "unauthorized"

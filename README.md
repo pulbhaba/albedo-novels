@@ -84,9 +84,12 @@ uvicorn albedo_novels_local.app:app --reload --port 8000
 
 The public `GET /health` endpoint returns the service health payload. The
 authenticated `GET /novels` endpoint currently serves the deterministic seeded
-DAO data, including drafts, with `limit` and `offset` pagination. Other routes
-return the planned-route `501` response until their core use cases are wired to
-persistence.
+DAO data, including drafts, with `limit` and `offset` pagination. The
+authenticated `GET /novels/{novelId}` endpoint returns a single novel when the
+caller is allowed to read it (published novels for any reader, draft novels
+for the owner or an editor/admin) and maps missing or forbidden novels to
+`404` and `403` respectively. Other routes return the planned-route `501`
+response until their core use cases are wired to persistence.
 
 ## SQLAlchemy persistence
 
