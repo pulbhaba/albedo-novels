@@ -187,3 +187,32 @@ def test_add_favorite_rejects_an_unreadable_draft() -> None:
 
     assert response["statusCode"] == 403
     assert json.loads(response["body"])["error"] == "forbidden"
+
+
+def test_list_library_returns_current_users_favorites() -> None:
+    event = _event(
+        "PUT",
+        "/library/novel-002/favorite",
+        headers={"authorization": "Bearer access-token"},
+    )
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("lambda-library-reader")),
+    ):
+        lambda_handler(event, None)
+        response = lambda_handler(
+            _event("GET", "/library", headers={"authorization": "Bearer access-token"}),
+            None,
+        )
+
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert body["items"][0]["novel"]["id"] == "novel-002"
+    assert body["items"][0]["novel"]["title"] == "A Map for Forgetting"
+    assert body["items"][0]["favoritedAt"].startswith("2026-08-21T")
+
+
+def test_list_library_returns_401_when_bearer_missing() -> None:
+    response = lambda_handler(_event("GET", "/library"), None)
+
+    assert response["statusCode"] == 401

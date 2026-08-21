@@ -11,6 +11,7 @@ from albedo_novels_core.application.ports import (
 )
 from albedo_novels_core.domain.models import (
     LibraryEntry,
+    LibraryNovel,
     Novel,
     NovelId,
     NovelStatus,
@@ -108,6 +109,19 @@ class NovelUseCases:
             created_at=self._clock.utcnow_iso(),
         )
         return self._library.save(entry)
+
+    def list_library(self, user: UserContext) -> list[LibraryNovel]:
+        """Return this user's readable favorites in repository order.
+
+        Library rows can outlive a novel or become unreadable after a status
+        change, so those rows are intentionally omitted from the view.
+        """
+        items: list[LibraryNovel] = []
+        for entry in self._library.list_by_user(user.user_id):
+            novel = self._novels.get(entry.novel_id)
+            if novel is not None and novel.is_readable_by(user):
+                items.append(LibraryNovel(novel=novel, favorited_at=entry.created_at))
+        return items
 
     def list_novels(self, query: ListNovelsQuery) -> NovelListPage:
         limit, offset = _normalize_pagination(query.limit, query.offset)
