@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 import pytest
 
+from albedo_novels_core.domain.models import UserContext, UserId
+
 from albedo_novels_local import app as local_app
 
 
@@ -214,3 +216,41 @@ def test_get_novel_returns_401_when_bearer_missing() -> None:
 
     assert response.status_code == 401
     assert response.json()["error"] == "unauthorized"
+
+
+def test_add_favorite_is_idempotent_for_a_readable_novel() -> None:
+    user = UserContext(UserId("local-favorite-reader"))
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=user,
+    ):
+        first = _request(
+            "PUT",
+            "/library/novel-001/favorite",
+            headers=_build_event_headers(),
+        )
+        second = _request(
+            "PUT",
+            "/library/novel-001/favorite",
+            headers=_build_event_headers(),
+        )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == second.json()
+    assert first.json()["novelId"] == "novel-001"
+
+
+def test_add_favorite_rejects_an_unreadable_draft() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("local-favorite-reader")),
+    ):
+        response = _request(
+            "PUT",
+            "/library/novel-004/favorite",
+            headers=_build_event_headers(),
+        )
+
+    assert response.status_code == 403
+    assert response.json()["error"] == "forbidden"

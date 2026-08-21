@@ -105,6 +105,10 @@ caller is allowed to read it (published novels for any reader, draft novels
 for the owner or an editor/admin) and maps missing or forbidden novels to
 `404` and `403` respectively. Other routes return the planned-route `501`
 response until their core use cases are wired to persistence.
+The authenticated `PUT /library/{novelId}/favorite` endpoint adds a readable
+novel to the current user's library. Repeating the request is idempotent and
+returns the existing favorite. The local seeded composition keeps favorites in
+memory; the MySQL composition uses the `library_entries` table.
 
 ## SQLAlchemy persistence
 

@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
+from albedo_novels_core.domain.models import UserContext, UserId
+
 from albedo_novels_lambda.handler import lambda_handler
 
 
@@ -148,3 +150,40 @@ def test_get_novel_returns_401_when_bearer_missing() -> None:
 
     assert response["statusCode"] == 401
     assert json.loads(response["body"])["error"] == "unauthorized"
+
+
+def test_add_favorite_returns_the_existing_entry_when_repeated() -> None:
+    event = _event(
+        "PUT",
+        "/library/novel-001/favorite",
+        headers={"authorization": "Bearer access-token"},
+    )
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("lambda-favorite-reader")),
+    ):
+        first = lambda_handler(event, None)
+        second = lambda_handler(event, None)
+
+    assert first["statusCode"] == 200
+    assert second["statusCode"] == 200
+    assert json.loads(first["body"]) == json.loads(second["body"])
+    assert json.loads(first["body"])["novelId"] == "novel-001"
+
+
+def test_add_favorite_rejects_an_unreadable_draft() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("lambda-favorite-reader")),
+    ):
+        response = lambda_handler(
+            _event(
+                "PUT",
+                "/library/novel-004/favorite",
+                headers={"authorization": "Bearer access-token"},
+            ),
+            None,
+        )
+
+    assert response["statusCode"] == 403
+    assert json.loads(response["body"])["error"] == "forbidden"
