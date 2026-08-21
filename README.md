@@ -64,6 +64,21 @@ Use this handler when wiring API Gateway to Lambda:
 albedo_novels_lambda.handler.lambda_handler
 ```
 
+## Lambda Packaging
+
+Build the deployable Lambda ZIP from the repository root:
+
+```bash
+./scripts/build_lambda.sh
+```
+
+The artifact is written to `dist/albedo-novels-lambda.zip`. It contains the
+Lambda handler, the core and infrastructure packages, and the runtime
+dependencies declared in `pyproject.toml`. Local-only FastAPI and Uvicorn
+dependencies are not installed into the Lambda artifact. Set `PYTHON_BIN` to
+choose the interpreter used for staging, for example
+`PYTHON_BIN=.venv/bin/python ./scripts/build_lambda.sh`.
+
 ## Local Development
 
 ```bash

@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "hatchling>=1.25",
   "pytest>=8.2",
 ]
 local = [
