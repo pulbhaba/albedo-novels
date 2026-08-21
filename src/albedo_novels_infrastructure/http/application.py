@@ -11,7 +11,7 @@ from albedo_novels_core.application import (
     NovelUseCases,
 )
 from albedo_novels_core.application.ports import Authenticator
-from albedo_novels_core.domain.models import LibraryEntry, Novel, NovelId, NovelStatus, UserContext
+from albedo_novels_core.domain.models import LibraryEntry, LibraryNovel, Novel, NovelId, NovelStatus, UserContext
 from albedo_novels_infrastructure.auth import AuthenticationError
 from .routes import ROUTES, Route
 
@@ -93,6 +93,11 @@ class HttpApplication:
             except ForbiddenError as error:
                 return HttpResponse(403, {"error": "forbidden", "message": str(error)})
             return HttpResponse(200, library_entry_to_dict(entry))
+        if route.handler == "list_library":
+            return HttpResponse(
+                200,
+                {"items": [library_novel_to_dict(item) for item in self._use_cases.list_library(user)]},
+            )
         return self._planned_response(request)
 
     @staticmethod
@@ -163,6 +168,14 @@ def library_entry_to_dict(entry: LibraryEntry) -> dict[str, Any]:
     return {
         "novelId": entry.novel_id,
         "createdAt": entry.created_at,
+    }
+
+
+def library_novel_to_dict(item: LibraryNovel) -> dict[str, Any]:
+    novel = item.novel
+    return {
+        "novel": novel_to_dict(novel),
+        "favoritedAt": item.favorited_at,
     }
 
 

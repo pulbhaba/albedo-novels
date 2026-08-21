@@ -254,3 +254,32 @@ def test_add_favorite_rejects_an_unreadable_draft() -> None:
 
     assert response.status_code == 403
     assert response.json()["error"] == "forbidden"
+
+
+def test_list_library_returns_only_current_users_readable_favorites() -> None:
+    user = UserContext(UserId("local-library-reader"))
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=user,
+    ):
+        _request("PUT", "/library/novel-001/favorite", headers=_build_event_headers())
+        response = _request("GET", "/library", headers=_build_event_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["items"][0]["novel"] == {
+        "id": "novel-001",
+        "title": "The Glass Compass",
+        "authorId": "user-1",
+        "isbn": "978-000000001",
+        "status": "published",
+        "createdAt": "2026-01-04T09:30:00+00:00",
+        "updatedAt": "2026-01-12T12:15:00+00:00",
+    }
+    assert body["items"][0]["favoritedAt"].startswith("2026-08-21T")
+
+
+def test_list_library_requires_authentication() -> None:
+    response = _request("GET", "/library")
+
+    assert response.status_code == 401

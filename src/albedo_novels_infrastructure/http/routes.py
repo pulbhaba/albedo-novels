@@ -24,7 +24,7 @@ ROUTES: tuple[Route, ...] = (
     Route("GET", "/novels/{novel_id}", "get_novel", True),
     Route("PATCH", "/novels/{novel_id}", "planned", True),
     Route("POST", "/novels/{novel_id}/publish", "planned", True),
-    Route("GET", "/library", "planned", True),
+    Route("GET", "/library", "list_library", True),
     Route("PUT", "/library/{novel_id}/favorite", "add_favorite", True),
     Route("DELETE", "/library/{novel_id}/favorite", "planned", True),
 )

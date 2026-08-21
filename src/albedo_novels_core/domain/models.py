@@ -57,3 +57,11 @@ class LibraryEntry:
     user_id: UserId
     novel_id: NovelId
     created_at: str
+
+
+@dataclass(frozen=True)
+class LibraryNovel:
+    """A readable novel together with the user's favorite metadata."""
+
+    novel: Novel
+    favorited_at: str

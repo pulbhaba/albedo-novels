@@ -108,7 +108,10 @@ response until their core use cases are wired to persistence.
 The authenticated `PUT /library/{novelId}/favorite` endpoint adds a readable
 novel to the current user's library. Repeating the request is idempotent and
 returns the existing favorite. The local seeded composition keeps favorites in
-memory; the MySQL composition uses the `library_entries` table.
+memory; the MySQL composition uses the `library_entries` table. The authenticated
+`GET /library` endpoint returns the current user's readable favorites as
+`{"items":[{"novel": <novel representation>, "favoritedAt": <timestamp>}]}`.
+Stale entries for deleted or no-longer-readable novels are omitted.
 
 ## SQLAlchemy persistence
 

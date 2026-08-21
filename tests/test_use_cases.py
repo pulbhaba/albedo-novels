@@ -174,3 +174,21 @@ def test_add_favorite_rejects_a_draft_the_reader_cannot_read() -> None:
         use_cases.add_favorite(UserContext(UserId("reader-1")), NovelId("novel-draft"))
 
     assert library.list_by_user(UserId("reader-1")) == []
+
+
+def test_list_library_is_private_and_omits_missing_or_unreadable_novels() -> None:
+    private_draft = _draft()
+    repository = InMemoryNovelRepository([_published(), private_draft])
+    library = InMemoryLibraryRepository()
+    reader = UserContext(UserId("reader-1"))
+    use_cases, _, _ = _use_cases(repository, library)
+    library.save(LibraryEntry(reader.user_id, NovelId("novel-published"), "2026-08-20T00:00:00+00:00"))
+    library.save(LibraryEntry(reader.user_id, private_draft.id, "2026-08-21T00:00:00+00:00"))
+    library.save(LibraryEntry(reader.user_id, NovelId("novel-missing"), "2026-08-22T00:00:00+00:00"))
+    library.save(LibraryEntry(UserId("other-reader"), NovelId("novel-published"), "2026-08-23T00:00:00+00:00"))
+
+    items = use_cases.list_library(reader)
+
+    assert [(item.novel.id, item.favorited_at) for item in items] == [
+        (NovelId("novel-published"), "2026-08-20T00:00:00+00:00")
+    ]
