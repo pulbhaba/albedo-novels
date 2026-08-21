@@ -112,6 +112,9 @@ memory; the MySQL composition uses the `library_entries` table. The authenticate
 `GET /library` endpoint returns the current user's readable favorites as
 `{"items":[{"novel": <novel representation>, "favoritedAt": <timestamp>}]}`.
 Stale entries for deleted or no-longer-readable novels are omitted.
+The authenticated `DELETE /library/{novelId}/favorite` endpoint removes the
+favorite for the current user and returns `204 No Content`; repeating the
+request is safe and returns the same response.
 
 ## SQLAlchemy persistence
 

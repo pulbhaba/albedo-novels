@@ -110,6 +110,10 @@ class NovelUseCases:
         )
         return self._library.save(entry)
 
+    def remove_favorite(self, user: UserContext, novel_id: NovelId) -> None:
+        """Remove this user's favorite, treating an absent entry as success."""
+        self._library.delete(user.user_id, novel_id)
+
     def list_library(self, user: UserContext) -> list[LibraryNovel]:
         """Return this user's readable favorites in repository order.
 
