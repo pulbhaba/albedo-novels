@@ -44,9 +44,11 @@ class HttpApplication:
         self._authenticator = authenticator
 
     def handle(self, request: HttpRequest) -> HttpResponse:
-        route = _find_route(request.method, request.path)
-        if route is None:
+        matched = _match_route(request.method, request.path)
+        if matched is None:
             return self._planned_response(request)
+        route, extracted_params = matched
+        path_params = {**extracted_params, **request.path_params}
 
         if route.auth_required:
             try:
@@ -74,7 +76,7 @@ class HttpApplication:
                 },
             )
         if route.handler == "get_novel":
-            novel_id_raw = request.path_params.get("novel_id") or _last_path_segment(request.path)
+            novel_id_raw = path_params.get("novel_id") or _last_path_segment(request.path)
             try:
                 novel = self._use_cases.get_novel(user, NovelId(str(novel_id_raw)))
             except NotFoundError as error:
@@ -98,15 +100,28 @@ class HttpApplication:
 
 
 def _find_route(method: str, path: str) -> Route | None:
+    matched = _match_route(method, path)
+    return matched[0] if matched is not None else None
+
+
+def _match_route(method: str, path: str) -> tuple[Route, dict[str, str]] | None:
     for route in ROUTES:
-        if route.method == method.upper() and _path_matches(route.path, path):
-            return route
+        if route.method != method.upper():
+            continue
+        match = re.fullmatch(_route_pattern(route.path), path)
+        if match is not None:
+            return route, match.groupdict()
     return None
 
 
 def _path_matches(pattern: str, path: str) -> bool:
-    expression = re.sub(r"\{[^/]+\}", r"[^/]+", pattern)
-    return re.fullmatch(expression, path) is not None
+    return re.fullmatch(_route_pattern(pattern), path) is not None
+
+
+def _route_pattern(pattern: str) -> str:
+    """Turn a route template into a safe regex with named path captures."""
+    expression = re.escape(pattern)
+    return re.sub(r"\\\{([^{}]+)\\\}", r"(?P<\1>[^/]+)", expression)
 
 
 def _coerce_int(value: object, default: int, minimum: int | None = None, maximum: int | None = None) -> int:
@@ -136,4 +151,3 @@ def novel_to_dict(novel: Novel) -> dict[str, Any]:
 
 def _last_path_segment(path: str) -> str:
     return path.rsplit("/", 1)[-1]
-
