@@ -163,6 +163,9 @@ def test_add_favorite_persists_entry_for_a_readable_novel() -> None:
     assert entry == LibraryEntry(reader.user_id, NovelId("novel-published"), "2026-08-21T00:00:00+00:00")
     assert library.list_by_user(reader.user_id) == [entry]
 
+    assert use_cases.add_favorite(reader, NovelId("novel-published")) == entry
+    assert library.list_by_user(reader.user_id) == [entry]
+
 
 def test_add_favorite_rejects_a_draft_the_reader_cannot_read() -> None:
     use_cases, _, library = _use_cases(InMemoryNovelRepository([_draft()]))

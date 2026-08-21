@@ -5,14 +5,18 @@ import os
 from uuid import uuid4
 
 from albedo_novels_core.application import NovelUseCases
+from albedo_novels_infrastructure.persistence.in_memory import InMemoryLibraryRepository
 from albedo_novels_infrastructure.persistence.seeded_novel_dao import dao_test
 from albedo_novels_infrastructure.persistence.sqlalchemy import SqlAlchemyLibraryRepository, SqlAlchemyNovelRepository
+
+
+_LOCAL_LIBRARY = InMemoryLibraryRepository()
 
 
 def build_use_cases() -> NovelUseCases:
     return NovelUseCases(
         novels=dao_test(),
-        library=EmptyLibraryRepository(),
+        library=_LOCAL_LIBRARY,
         ids=UuidIdGenerator(),
         clock=SystemClock(),
     )
@@ -31,19 +35,6 @@ def build_mysql_use_cases() -> NovelUseCases:
         ids=UuidIdGenerator(),
         clock=SystemClock(),
     )
-
-
-class EmptyLibraryRepository:
-    """Stand-in until the MySQL library adapter lands (issue #13)."""
-
-    def save(self, entry: object) -> object:
-        return entry
-
-    def delete(self, _user_id: object, _novel_id: object) -> None:
-        return None
-
-    def list_by_user(self, _user_id: object) -> list[object]:
-        return []
 
 
 class UuidIdGenerator:

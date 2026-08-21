@@ -11,7 +11,7 @@ from albedo_novels_core.application import (
     NovelUseCases,
 )
 from albedo_novels_core.application.ports import Authenticator
-from albedo_novels_core.domain.models import Novel, NovelId, NovelStatus, UserContext
+from albedo_novels_core.domain.models import LibraryEntry, Novel, NovelId, NovelStatus, UserContext
 from albedo_novels_infrastructure.auth import AuthenticationError
 from .routes import ROUTES, Route
 
@@ -84,6 +84,15 @@ class HttpApplication:
             except ForbiddenError as error:
                 return HttpResponse(403, {"error": "forbidden", "message": str(error)})
             return HttpResponse(200, novel_to_dict(novel))
+        if route.handler == "add_favorite":
+            novel_id_raw = path_params.get("novel_id") or _last_path_segment(request.path)
+            try:
+                entry = self._use_cases.add_favorite(user, NovelId(str(novel_id_raw)))
+            except NotFoundError as error:
+                return HttpResponse(404, {"error": "not_found", "message": str(error)})
+            except ForbiddenError as error:
+                return HttpResponse(403, {"error": "forbidden", "message": str(error)})
+            return HttpResponse(200, library_entry_to_dict(entry))
         return self._planned_response(request)
 
     @staticmethod
@@ -148,6 +157,14 @@ def novel_to_dict(novel: Novel) -> dict[str, Any]:
         "createdAt": novel.created_at,
         "updatedAt": novel.updated_at,
     }
+
+
+def library_entry_to_dict(entry: LibraryEntry) -> dict[str, Any]:
+    return {
+        "novelId": entry.novel_id,
+        "createdAt": entry.created_at,
+    }
+
 
 def _last_path_segment(path: str) -> str:
     return path.rsplit("/", 1)[-1]
