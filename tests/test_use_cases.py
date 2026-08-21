@@ -176,6 +176,20 @@ def test_add_favorite_rejects_a_draft_the_reader_cannot_read() -> None:
     assert library.list_by_user(UserId("reader-1")) == []
 
 
+def test_remove_favorite_is_idempotent_and_private_to_the_current_user() -> None:
+    use_cases, _, library = _use_cases()
+    reader = UserContext(UserId("reader-1"))
+    other_reader = UserContext(UserId("reader-2"))
+    library.save(LibraryEntry(reader.user_id, NovelId("novel-published"), "2026-08-21T00:00:00+00:00"))
+    library.save(LibraryEntry(other_reader.user_id, NovelId("novel-published"), "2026-08-21T00:00:00+00:00"))
+
+    use_cases.remove_favorite(reader, NovelId("novel-published"))
+    use_cases.remove_favorite(reader, NovelId("novel-published"))
+
+    assert library.list_by_user(reader.user_id) == []
+    assert len(library.list_by_user(other_reader.user_id)) == 1
+
+
 def test_list_library_is_private_and_omits_missing_or_unreadable_novels() -> None:
     private_draft = _draft()
     repository = InMemoryNovelRepository([_published(), private_draft])

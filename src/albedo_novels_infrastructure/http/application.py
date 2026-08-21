@@ -93,6 +93,10 @@ class HttpApplication:
             except ForbiddenError as error:
                 return HttpResponse(403, {"error": "forbidden", "message": str(error)})
             return HttpResponse(200, library_entry_to_dict(entry))
+        if route.handler == "remove_favorite":
+            novel_id_raw = path_params.get("novel_id") or _last_path_segment(request.path)
+            self._use_cases.remove_favorite(user, NovelId(str(novel_id_raw)))
+            return HttpResponse(204, {})
         if route.handler == "list_library":
             return HttpResponse(
                 200,

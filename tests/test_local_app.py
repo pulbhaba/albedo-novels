@@ -283,3 +283,23 @@ def test_list_library_requires_authentication() -> None:
     response = _request("GET", "/library")
 
     assert response.status_code == 401
+
+
+def test_remove_favorite_is_idempotent() -> None:
+    user = UserContext(UserId("local-delete-reader"))
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=user,
+    ):
+        _request("PUT", "/library/novel-001/favorite", headers=_build_event_headers())
+        first = _request("DELETE", "/library/novel-001/favorite", headers=_build_event_headers())
+        second = _request("DELETE", "/library/novel-001/favorite", headers=_build_event_headers())
+
+    assert first.status_code == 204
+    assert second.status_code == 204
+
+
+def test_remove_favorite_requires_authentication() -> None:
+    response = _request("DELETE", "/library/novel-001/favorite")
+
+    assert response.status_code == 401

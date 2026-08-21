@@ -216,3 +216,32 @@ def test_list_library_returns_401_when_bearer_missing() -> None:
     response = lambda_handler(_event("GET", "/library"), None)
 
     assert response["statusCode"] == 401
+
+
+def test_remove_favorite_is_idempotent_and_scoped_to_the_authenticated_user() -> None:
+    favorite_event = _event(
+        "PUT",
+        "/library/novel-001/favorite",
+        headers={"authorization": "Bearer access-token"},
+    )
+    remove_event = _event(
+        "DELETE",
+        "/library/novel-001/favorite",
+        headers={"authorization": "Bearer access-token"},
+    )
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("lambda-delete-reader")),
+    ):
+        lambda_handler(favorite_event, None)
+        first = lambda_handler(remove_event, None)
+        second = lambda_handler(remove_event, None)
+
+    assert first["statusCode"] == 204
+    assert second["statusCode"] == 204
+
+
+def test_remove_favorite_requires_authentication() -> None:
+    response = lambda_handler(_event("DELETE", "/library/novel-001/favorite"), None)
+
+    assert response["statusCode"] == 401
