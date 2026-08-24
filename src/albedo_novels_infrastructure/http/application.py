@@ -5,13 +5,14 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from albedo_novels_core.application import (
+    CreateNovelCommand,
     ForbiddenError,
     ListNovelsQuery,
     NotFoundError,
     NovelUseCases,
 )
 from albedo_novels_core.application.ports import Authenticator
-from albedo_novels_core.domain.models import LibraryEntry, LibraryNovel, Novel, NovelId, NovelStatus, UserContext
+from albedo_novels_core.domain.models import LibraryEntry, LibraryNovel, Novel, NovelId, NovelStatus, UserContext, UserId
 from albedo_novels_infrastructure.auth import AuthenticationError
 from .routes import ROUTES, Route
 
@@ -27,6 +28,7 @@ class HttpRequest:
     headers: Mapping[str, object] = field(default_factory=dict)
     query: Mapping[str, object] = field(default_factory=dict)
     path_params: Mapping[str, str] = field(default_factory=dict)
+    body: object = None
 
 
 @dataclass(frozen=True)
@@ -75,6 +77,15 @@ class HttpApplication:
                     "offset": page.offset,
                 },
             )
+        if route.handler == "create_novel":
+            command, error = _create_novel_command(request.body)
+            if error is not None:
+                return HttpResponse(400, {"error": "validation_error", "message": error})
+            novel = self._use_cases.create_novel(
+                user,
+                CreateNovelCommand(title=command.title, author_id=user.user_id, isbn=command.isbn),
+            )
+            return HttpResponse(201, novel_to_dict(novel))
         if route.handler == "get_novel":
             novel_id_raw = path_params.get("novel_id") or _last_path_segment(request.path)
             try:
@@ -162,6 +173,23 @@ def novel_to_dict(novel: Novel) -> dict[str, Any]:
         "createdAt": novel.created_at,
         "updatedAt": novel.updated_at,
     }
+
+
+def _create_novel_command(body: object) -> tuple[CreateNovelCommand | None, str | None]:
+    if not isinstance(body, Mapping):
+        return None, "Request body must be a JSON object."
+
+    title = body.get("title")
+    if not isinstance(title, str) or not title.strip():
+        return None, "title is required and must be a non-empty string."
+    if len(title) > 255:
+        return None, "title must be 255 characters or fewer."
+
+    isbn = body.get("isbn")
+    if isbn is not None and (not isinstance(isbn, str) or not isbn.strip() or len(isbn) > 32):
+        return None, "isbn must be a non-empty string of 32 characters or fewer."
+
+    return CreateNovelCommand(title=title, author_id=UserId(""), isbn=isbn), None
 
 
 def library_entry_to_dict(entry: LibraryEntry) -> dict[str, Any]:

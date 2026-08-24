@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import base64
 from typing import Any
 
 from albedo_novels_infrastructure.auth import JwtAuthenticator
@@ -14,6 +15,7 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         path=_path(event),
         headers=_headers(event),
         query=_query(event),
+        body=_body(event),
     )
     return _lambda_response(_application().handle(request))
 
@@ -46,3 +48,18 @@ def _headers(event: dict[str, Any]) -> dict[str, str]:
 
 def _query(event: dict[str, Any]) -> dict[str, str]:
     return {str(name): str(value) for name, value in (event.get("queryStringParameters") or {}).items()}
+
+
+def _body(event: dict[str, Any]) -> object:
+    raw_body = event.get("body")
+    if raw_body in (None, ""):
+        return None
+    if event.get("isBase64Encoded"):
+        try:
+            raw_body = base64.b64decode(raw_body).decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            return None
+    try:
+        return json.loads(raw_body) if isinstance(raw_body, str) else raw_body
+    except json.JSONDecodeError:
+        return None

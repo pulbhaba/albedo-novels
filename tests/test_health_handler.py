@@ -18,12 +18,13 @@ def auth_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AUTH_JWKS_URL", "https://auth.example.test/jwks")
 
 
-def _event(method: str, path: str, headers: Mapping[str, str] | None = None, query: dict[str, str] | None = None) -> dict[str, Any]:
+def _event(method: str, path: str, headers: Mapping[str, str] | None = None, query: dict[str, str] | None = None, body: dict[str, object] | None = None) -> dict[str, Any]:
     return {
         "requestContext": {"http": {"method": method}},
         "rawPath": path,
         "headers": headers or {},
         "queryStringParameters": query,
+        "body": json.dumps(body) if body is not None else None,
     }
 
 
@@ -88,6 +89,42 @@ def test_get_novels_returns_401_when_bearer_missing() -> None:
 
     assert response["statusCode"] == 401
     assert json.loads(response["body"])["error"] == "unauthorized"
+
+
+def test_create_novel_returns_owned_draft() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("creator-1")),
+    ):
+        response = lambda_handler(
+            _event(
+                "POST",
+                "/novels",
+                headers={"authorization": "Bearer access-token"},
+                body={"title": "A New Novel", "isbn": "978-000000099"},
+            ),
+            None,
+        )
+
+    assert response["statusCode"] == 201
+    body = json.loads(response["body"])
+    assert body["title"] == "A New Novel"
+    assert body["authorId"] == "creator-1"
+    assert body["status"] == "draft"
+
+
+def test_create_novel_rejects_invalid_body() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("creator-1")),
+    ):
+        response = lambda_handler(
+            _event("POST", "/novels", headers={"authorization": "Bearer access-token"}, body={"title": ""}),
+            None,
+        )
+
+    assert response["statusCode"] == 400
+    assert json.loads(response["body"])["error"] == "validation_error"
 
 
 def test_planned_route_returns_401_when_bearer_missing() -> None:

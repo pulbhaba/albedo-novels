@@ -35,8 +35,9 @@ class _Response:
         return json.loads(self._body)
 
 
-def _request(method: str, path: str, *, headers: Mapping[str, str] | None = None, params: Mapping[str, object] | None = None) -> _Response:
+def _request(method: str, path: str, *, headers: Mapping[str, str] | None = None, params: Mapping[str, object] | None = None, body: Mapping[str, object] | None = None) -> _Response:
     query = urlencode(params or {})
+    request_body = json.dumps(body or {}).encode() if body is not None else b""
     scope = {
         "type": "http",
         "method": method,
@@ -57,7 +58,7 @@ def _request(method: str, path: str, *, headers: Mapping[str, str] | None = None
         response_body = b""
 
         async def receive() -> dict[str, Any]:
-            return {"type": "http.request", "body": b"", "more_body": False}
+            return {"type": "http.request", "body": request_body, "more_body": False}
 
         async def send(message: dict[str, Any]) -> None:
             nonlocal response_status, response_headers, response_body
@@ -148,18 +149,30 @@ def test_get_novels_rejects_negative_offset() -> None:
     assert response.json()["offset"] == 0
 
 
-def test_unimplemented_routes_still_return_501() -> None:
+def test_create_novel_returns_owned_draft() -> None:
     with patch(
         "albedo_novels_infrastructure.auth.JwtVerifier.verify",
-        return_value=object(),
+        return_value=UserContext(UserId("creator-1")),
     ):
-        response = _request("POST", "/novels", headers=_build_event_headers())
+        response = _request("POST", "/novels", headers=_build_event_headers(), body={"title": "A New Novel", "isbn": "978-000000099"})
 
-    assert response.status_code == 501
+    assert response.status_code == 201
     body = response.json()
-    assert body["error"] == "not_implemented"
-    assert body["path"] == "/novels"
-    assert body["method"] == "POST"
+    assert body["title"] == "A New Novel"
+    assert body["authorId"] == "creator-1"
+    assert body["isbn"] == "978-000000099"
+    assert body["status"] == "draft"
+
+
+def test_create_novel_rejects_invalid_body() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("creator-1")),
+    ):
+        response = _request("POST", "/novels", headers=_build_event_headers(), body={"title": ""})
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "validation_error"
 
 
 def test_planned_route_auth_failure_matches_lambda_semantics() -> None:
