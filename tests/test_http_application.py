@@ -17,3 +17,12 @@ def test_route_lookup_remains_compatible_with_route_only_callers() -> None:
 
     assert route is not None
     assert route.handler == "health"
+
+
+def test_draft_update_route_is_declared_in_shared_route_table() -> None:
+    matched = _match_route("PATCH", "/novels/novel-123")
+
+    assert matched is not None
+    route, path_params = matched
+    assert route.handler == "update_draft"
+    assert path_params == {"novel_id": "novel-123"}

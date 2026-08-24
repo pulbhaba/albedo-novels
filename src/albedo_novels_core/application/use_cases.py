@@ -28,11 +28,22 @@ class ForbiddenError(Exception):
     """Raised when the current user cannot perform an action."""
 
 
+class ConflictError(Exception):
+    """Raised when a resource is in an incompatible state for an action."""
+
+
 @dataclass(frozen=True)
 class CreateNovelCommand:
     title: str
     author_id: UserId
     isbn: str | None = None
+
+
+@dataclass(frozen=True)
+class UpdateNovelCommand:
+    title: str | None = None
+    isbn: str | None = None
+    update_isbn: bool = False
 
 
 @dataclass(frozen=True)
@@ -97,6 +108,21 @@ class NovelUseCases:
             last_modified_user_id=user.user_id,
         )
         return self._novels.save(published)
+
+    def update_draft(self, user: UserContext, novel_id: NovelId, command: UpdateNovelCommand) -> Novel:
+        novel = self._load_novel(novel_id)
+        if novel.author_id != user.user_id:
+            raise ForbiddenError("Only the novel owner can update a draft.")
+        if novel.status != NovelStatus.DRAFT:
+            raise ConflictError("Published novels cannot be updated through the draft update path.")
+
+        updated = novel.update_draft(
+            title=command.title,
+            isbn=command.isbn if command.update_isbn else novel.isbn,
+            updated_at=self._clock.utcnow_iso(),
+            last_modified_user_id=user.user_id,
+        )
+        return self._novels.save(updated)
 
     def add_favorite(self, user: UserContext, novel_id: NovelId) -> LibraryEntry:
         novel = self._load_novel(novel_id)

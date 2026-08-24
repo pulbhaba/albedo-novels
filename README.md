@@ -107,6 +107,9 @@ for the owner or an editor/admin) and maps missing or forbidden novels to
 response until their core use cases are wired to persistence.
 The authenticated `POST /novels` endpoint validates a title and optional ISBN,
 creates a draft owned by the authenticated user, and returns the created novel.
+The authenticated `PATCH /novels/{novelId}` endpoint updates the title and/or
+ISBN of an owned draft. It returns `403` for another user's draft, `409` for a
+published novel, and `400` when no editable field or an invalid value is sent.
 The authenticated `PUT /library/{novelId}/favorite` endpoint adds a readable
 novel to the current user's library. Repeating the request is idempotent and
 returns the existing favorite. The local seeded composition keeps favorites in

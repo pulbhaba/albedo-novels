@@ -4,10 +4,12 @@ from __future__ import annotations
 import pytest
 
 from albedo_novels_core.application import (
+    ConflictError,
     CreateNovelCommand,
     ForbiddenError,
     NotFoundError,
     NovelUseCases,
+    UpdateNovelCommand,
 )
 from albedo_novels_core.domain.models import (
     LibraryEntry,
@@ -133,6 +135,34 @@ def test_publish_novel_requires_editor_or_admin_role() -> None:
 
     with pytest.raises(ForbiddenError, match="ROLE_EDITOR"):
         use_cases.publish_novel(UserContext(UserId("reader-1")), NovelId("novel-draft"))
+
+
+def test_update_draft_changes_owned_metadata_and_audit_fields() -> None:
+    repository = InMemoryNovelRepository([_draft()])
+    use_cases, novels, _ = _use_cases(repository)
+    owner = UserContext(UserId("author-1"))
+
+    updated = use_cases.update_draft(
+        owner,
+        NovelId("novel-draft"),
+        UpdateNovelCommand(title="A Better Draft", isbn="978-000000111", update_isbn=True),
+    )
+
+    assert updated.title == "A Better Draft"
+    assert updated.isbn == "978-000000111"
+    assert updated.status is NovelStatus.DRAFT
+    assert updated.updated_at == "2026-08-21T00:00:00+00:00"
+    assert updated.last_modified_user_id == owner.user_id
+    assert novels.get(updated.id) == updated
+
+
+def test_update_draft_requires_owner_and_draft_status() -> None:
+    use_cases, _, _ = _use_cases(InMemoryNovelRepository([_draft(), _published()]))
+
+    with pytest.raises(ForbiddenError):
+        use_cases.update_draft(UserContext(UserId("reader-1")), NovelId("novel-draft"), UpdateNovelCommand(title="Nope"))
+    with pytest.raises(ConflictError):
+        use_cases.update_draft(UserContext(UserId("author-1")), NovelId("novel-published"), UpdateNovelCommand(title="Nope"))
 
 
 def test_get_novel_allows_published_novels_and_owned_drafts() -> None:
