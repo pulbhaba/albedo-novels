@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+from albedo_novels_core.domain.models import UserContext, UserId
 from albedo_novels_infrastructure.auth import AuthenticationError
 from albedo_novels_lambda.handler import lambda_handler
 
@@ -23,12 +24,14 @@ def _v2_event(
     *,
     headers: dict[str, str] | None = None,
     query: dict[str, str] | None = None,
+    body: dict[str, object] | None = None,
 ) -> dict[str, Any]:
     return {
         "requestContext": {"http": {"method": method}},
         "rawPath": path,
         "headers": headers or {},
         "queryStringParameters": query,
+        "body": json.dumps(body) if body is not None else None,
     }
 
 
@@ -132,25 +135,24 @@ def test_lambda_maps_invalid_bearer_token_to_unauthorized_response() -> None:
     }
 
 
-def test_lambda_maps_unimplemented_authenticated_route_to_json_response() -> None:
+def test_lambda_creates_owned_draft() -> None:
     with patch(
         "albedo_novels_infrastructure.auth.JwtVerifier.verify",
-        return_value=object(),
+        return_value=UserContext(UserId("creator-1")),
     ):
         response = lambda_handler(
             _v2_event(
                 "POST",
                 "/novels",
                 headers={"authorization": "Bearer access-token"},
+                body={"title": "A New Novel", "isbn": "978-000000099"},
             ),
             None,
         )
 
-    assert response["statusCode"] == 501
+    assert response["statusCode"] == 201
     assert response["headers"]["Content-Type"] == "application/json"
-    assert json.loads(response["body"]) == {
-        "error": "not_implemented",
-        "message": "Route is planned but not implemented yet.",
-        "method": "POST",
-        "path": "/novels",
-    }
+    body = json.loads(response["body"])
+    assert body["title"] == "A New Novel"
+    assert body["authorId"] == "creator-1"
+    assert body["status"] == "draft"

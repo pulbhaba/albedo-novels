@@ -17,12 +17,17 @@ def _application() -> HttpApplication:
 
 def _endpoint(route: Route):
     async def handle(request: Request) -> JSONResponse:
+        try:
+            body = await request.json()
+        except (ValueError, UnicodeDecodeError):
+            body = None
         shared_request = HttpRequest(
             method=route.method,
             path=request.url.path,
             headers=dict(request.headers),
             query=dict(request.query_params),
             path_params=dict(request.path_params),
+            body=body,
         )
         response = _application().handle(shared_request)
         return JSONResponse(status_code=response.status_code, content=response.body, headers=dict(response.headers))

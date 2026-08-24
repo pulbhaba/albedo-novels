@@ -105,6 +105,8 @@ caller is allowed to read it (published novels for any reader, draft novels
 for the owner or an editor/admin) and maps missing or forbidden novels to
 `404` and `403` respectively. Other routes return the planned-route `501`
 response until their core use cases are wired to persistence.
+The authenticated `POST /novels` endpoint validates a title and optional ISBN,
+creates a draft owned by the authenticated user, and returns the created novel.
 The authenticated `PUT /library/{novelId}/favorite` endpoint adds a readable
 novel to the current user's library. Repeating the request is idempotent and
 returns the existing favorite. The local seeded composition keeps favorites in
