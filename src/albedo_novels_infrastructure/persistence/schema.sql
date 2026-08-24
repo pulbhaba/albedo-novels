@@ -1,3 +1,13 @@
+-- Baseline ER model
+--
+-- users is owned by albedo-auth. This service stores no user rows and treats
+-- author_id, last_modified_user_id, and library_entries.user_id as references
+-- to auth identities. JWT role claims supply the author/editor/reader roles:
+--   users ||--o{ novels          : writes (author_id)
+--   users ||--o{ novels          : edits (last_modified_user_id)
+--   users ||--o{ library_entries : favorites (user_id)
+--   novels ||--o{ library_entries : favorited_by (novel_id)
+--
 -- Novel metadata only. Covers, introductions, and chapter content belong in resources/content stores.
 CREATE TABLE IF NOT EXISTS novels (
     id VARCHAR(255) NOT NULL PRIMARY KEY,

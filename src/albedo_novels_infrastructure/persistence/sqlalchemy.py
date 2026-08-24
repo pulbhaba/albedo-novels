@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from sqlalchemy import String, UniqueConstraint, delete, func, select
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, delete, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from albedo_novels_core.domain.models import LibraryEntry, Novel, NovelId, NovelStatus, UserId
@@ -16,11 +16,16 @@ class Base(DeclarativeBase):
 
 class NovelRow(Base):
     __tablename__ = "novels"
+    __table_args__ = (
+        CheckConstraint("status IN ('draft', 'published')", name="novels_status_check"),
+        Index("novels_status_created_idx", "status", "created_at"),
+        Index("novels_author_created_idx", "author_id", "created_at"),
+    )
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    author_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
-    created_at: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    author_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[str] = mapped_column(String(64), nullable=False)
     updated_at: Mapped[str] = mapped_column(String(64), nullable=False)
     isbn: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True)
     last_modified_user_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -28,9 +33,9 @@ class NovelRow(Base):
 
 class LibraryEntryRow(Base):
     __tablename__ = "library_entries"
-    __table_args__ = (UniqueConstraint("user_id", "novel_id"),)
+    __table_args__ = (Index("library_entries_user_created_idx", "user_id", "created_at"),)
     user_id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    novel_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    novel_id: Mapped[str] = mapped_column(ForeignKey("novels.id", ondelete="CASCADE"), primary_key=True)
     created_at: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
