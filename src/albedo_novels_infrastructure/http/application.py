@@ -5,11 +5,13 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from albedo_novels_core.application import (
+    ConflictError,
     CreateNovelCommand,
     ForbiddenError,
     ListNovelsQuery,
     NotFoundError,
     NovelUseCases,
+    UpdateNovelCommand,
 )
 from albedo_novels_core.application.ports import Authenticator
 from albedo_novels_core.domain.models import LibraryEntry, LibraryNovel, Novel, NovelId, NovelStatus, UserContext, UserId
@@ -94,6 +96,20 @@ class HttpApplication:
                 return HttpResponse(404, {"error": "not_found", "message": str(error)})
             except ForbiddenError as error:
                 return HttpResponse(403, {"error": "forbidden", "message": str(error)})
+            return HttpResponse(200, novel_to_dict(novel))
+        if route.handler == "update_draft":
+            novel_id_raw = path_params.get("novel_id") or _last_path_segment(request.path)
+            command, error = _update_novel_command(request.body)
+            if error is not None:
+                return HttpResponse(400, {"error": "validation_error", "message": error})
+            try:
+                novel = self._use_cases.update_draft(user, NovelId(str(novel_id_raw)), command)
+            except NotFoundError as error:
+                return HttpResponse(404, {"error": "not_found", "message": str(error)})
+            except ForbiddenError as error:
+                return HttpResponse(403, {"error": "forbidden", "message": str(error)})
+            except ConflictError as error:
+                return HttpResponse(409, {"error": "conflict", "message": str(error)})
             return HttpResponse(200, novel_to_dict(novel))
         if route.handler == "add_favorite":
             novel_id_raw = path_params.get("novel_id") or _last_path_segment(request.path)
@@ -194,6 +210,25 @@ def _create_novel_command(body: object) -> tuple[CreateNovelCommand | None, str 
         return None, "isbn must be a non-empty string of 32 characters or fewer."
 
     return CreateNovelCommand(title=title, author_id=UserId(""), isbn=isbn), None
+
+
+def _update_novel_command(body: object) -> tuple[UpdateNovelCommand | None, str | None]:
+    if not isinstance(body, Mapping):
+        return None, "Request body must be a JSON object."
+    if "title" not in body and "isbn" not in body:
+        return None, "At least one of title or isbn must be provided."
+
+    title = body.get("title")
+    if "title" in body and (not isinstance(title, str) or not title.strip()):
+        return None, "title must be a non-empty string."
+    if isinstance(title, str) and len(title) > 255:
+        return None, "title must be 255 characters or fewer."
+
+    isbn = body.get("isbn")
+    if "isbn" in body and isbn is not None and (not isinstance(isbn, str) or not isbn.strip() or len(isbn) > 32):
+        return None, "isbn must be null or a non-empty string of 32 characters or fewer."
+
+    return UpdateNovelCommand(title=title, isbn=isbn, update_isbn="isbn" in body), None
 
 
 def library_entry_to_dict(entry: LibraryEntry) -> dict[str, Any]:

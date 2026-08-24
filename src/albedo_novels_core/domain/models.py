@@ -44,6 +44,22 @@ class Novel:
             last_modified_user_id=last_modified_user_id or self.last_modified_user_id,
         )
 
+    def update_draft(
+        self,
+        *,
+        title: str | None,
+        isbn: str | None,
+        updated_at: str,
+        last_modified_user_id: UserId,
+    ) -> "Novel":
+        return replace(
+            self,
+            title=title if title is not None else self.title,
+            isbn=isbn,
+            updated_at=updated_at,
+            last_modified_user_id=last_modified_user_id,
+        )
+
     def is_readable_by(self, user: UserContext) -> bool:
         return (
             self.status == NovelStatus.PUBLISHED

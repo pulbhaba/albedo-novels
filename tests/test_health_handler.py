@@ -127,6 +127,47 @@ def test_create_novel_rejects_invalid_body() -> None:
     assert json.loads(response["body"])["error"] == "validation_error"
 
 
+def test_update_draft_returns_updated_owned_draft() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("user-1")),
+    ):
+        response = lambda_handler(
+            _event(
+                "PATCH",
+                "/novels/novel-004",
+                headers={"authorization": "Bearer access-token"},
+                body={"title": "Iron Orchids", "isbn": "978-000000444"},
+            ),
+            None,
+        )
+
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert body["title"] == "Iron Orchids"
+    assert body["isbn"] == "978-000000444"
+    assert body["status"] == "draft"
+
+
+def test_update_draft_rejects_published_novel() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("user-1")),
+    ):
+        response = lambda_handler(
+            _event(
+                "PATCH",
+                "/novels/novel-001",
+                headers={"authorization": "Bearer access-token"},
+                body={"title": "Nope"},
+            ),
+            None,
+        )
+
+    assert response["statusCode"] == 409
+    assert json.loads(response["body"])["error"] == "conflict"
+
+
 def test_planned_route_returns_401_when_bearer_missing() -> None:
     response = lambda_handler(_event("POST", "/novels/42/publish"), None)
 

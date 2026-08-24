@@ -12,6 +12,7 @@ from albedo_novels_core.application.ports import (
     NovelRepository,
 )
 from albedo_novels_core.application.use_cases import (
+    ConflictError,
     CreateNovelCommand,
     DEFAULT_LIST_LIMIT,
     ForbiddenError,
@@ -19,11 +20,13 @@ from albedo_novels_core.application.use_cases import (
     MAX_LIST_LIMIT,
     NotFoundError,
     NovelListPage,
+    UpdateNovelCommand,
     NovelUseCases,
 )
 
 __all__ = [
     "Clock",
+    "ConflictError",
     "CreateNovelCommand",
     "DEFAULT_LIST_LIMIT",
     "ForbiddenError",
@@ -35,4 +38,5 @@ __all__ = [
     "NovelListPage",
     "NovelRepository",
     "NovelUseCases",
+    "UpdateNovelCommand",
 ]

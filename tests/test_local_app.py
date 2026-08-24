@@ -175,6 +175,44 @@ def test_create_novel_rejects_invalid_body() -> None:
     assert response.json()["error"] == "validation_error"
 
 
+def test_update_draft_returns_updated_owned_draft() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("user-1")),
+    ):
+        response = _request(
+            "PATCH",
+            "/novels/novel-004",
+            headers=_build_event_headers(),
+            body={"title": "Iron Orchids", "isbn": "978-000000444"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Iron Orchids"
+    assert response.json()["isbn"] == "978-000000444"
+    assert response.json()["status"] == "draft"
+
+
+def test_update_draft_rejects_non_owner_published_and_invalid_requests() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("other-user")),
+    ):
+        forbidden = _request("PATCH", "/novels/novel-004", headers=_build_event_headers(), body={"title": "Nope"})
+    assert forbidden.status_code == 403
+
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("user-1")),
+    ):
+        conflict = _request("PATCH", "/novels/novel-001", headers=_build_event_headers(), body={"title": "Nope"})
+        invalid = _request("PATCH", "/novels/novel-004", headers=_build_event_headers(), body={})
+    assert conflict.status_code == 409
+    assert conflict.json()["error"] == "conflict"
+    assert invalid.status_code == 400
+    assert invalid.json()["error"] == "validation_error"
+
+
 def test_planned_route_auth_failure_matches_lambda_semantics() -> None:
     response = _request("POST", "/novels/42/publish")
 
