@@ -128,6 +128,10 @@ the title, author ID, publication status, ISBN, timestamps, and last modifier;
 covers, introductions, chapters, and full text belong in resource/content
 storage. The schema is in
 `src/albedo_novels_infrastructure/persistence/schema.sql`.
+The baseline ER model and its auth-owned `users` boundary are documented in
+[issue #35](https://github.com/pulbhaba/albedo-novels/issues/35); the SQLAlchemy
+models in the same persistence package implement its `novels` and
+`library_entries` tables.
 
 `build_mysql_use_cases()` uses SQLAlchemy with `NOVELS_DB_URL` (default:
 `mysql+mysqlconnector://root:test_pass@localhost:3306/auth`) and implements
