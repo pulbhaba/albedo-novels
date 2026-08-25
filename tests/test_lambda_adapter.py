@@ -107,6 +107,40 @@ def test_lambda_adds_cors_headers_for_configured_origin(monkeypatch: pytest.Monk
     assert response["headers"]["Vary"] == "Origin"
 
 
+def test_lambda_handles_allowed_cors_preflight_without_authentication(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://reader.example")
+
+    response = lambda_handler(
+        _v2_event(
+            "OPTIONS",
+            "/novels",
+            headers={
+                "origin": "https://reader.example",
+                "access-control-request-method": "PATCH",
+                "access-control-request-headers": "authorization, content-type",
+            },
+        ),
+        None,
+    )
+
+    assert response["statusCode"] == 204
+    assert response["headers"]["Access-Control-Allow-Origin"] == "https://reader.example"
+    assert response["headers"]["Access-Control-Allow-Methods"] == "GET, POST, PATCH, PUT, DELETE, OPTIONS"
+    assert response["headers"]["Access-Control-Allow-Headers"] == "Authorization, Content-Type"
+
+
+def test_lambda_does_not_allow_unconfigured_cors_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://reader.example")
+
+    response = lambda_handler(
+        _v2_event("OPTIONS", "/novels", headers={"origin": "https://evil.example"}),
+        None,
+    )
+
+    assert response["statusCode"] == 204
+    assert "Access-Control-Allow-Origin" not in response["headers"]
+
+
 def test_lambda_maps_invalid_pagination_to_safe_defaults() -> None:
     with patch(
         "albedo_novels_infrastructure.auth.JwtVerifier.verify",

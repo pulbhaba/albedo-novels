@@ -83,6 +83,34 @@ def test_health_route_returns_ok() -> None:
     }
 
 
+def test_local_cors_preflight_allows_configured_origin(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://reader.example")
+    importlib.reload(local_app)
+
+    response = _request(
+        "OPTIONS",
+        "/novels",
+        headers={
+            "origin": "https://reader.example",
+            "access-control-request-method": "PATCH",
+            "access-control-request-headers": "authorization, content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "https://reader.example"
+    assert "PATCH" in response.headers["access-control-allow-methods"]
+
+
+def test_local_cors_preflight_rejects_unconfigured_origin(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://reader.example")
+    importlib.reload(local_app)
+
+    response = _request("OPTIONS", "/novels", headers={"origin": "https://evil.example"})
+
+    assert "access-control-allow-origin" not in response.headers
+
+
 def test_protected_route_requires_bearer_token() -> None:
     response = _request("GET", "/novels")
 
