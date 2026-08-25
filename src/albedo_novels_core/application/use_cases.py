@@ -107,6 +107,8 @@ class NovelUseCases:
             raise ForbiddenError("Publishing requires ROLE_EDITOR or ROLE_ADMIN.")
 
         novel = self._load_novel(novel_id)
+        if novel.status != NovelStatus.DRAFT:
+            raise ConflictError("Novel is already published.")
         published = novel.publish(
             updated_at=self._clock.utcnow_iso(),
             last_modified_user_id=user.user_id,

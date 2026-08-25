@@ -137,6 +137,14 @@ def test_publish_novel_requires_editor_or_admin_role() -> None:
         use_cases.publish_novel(UserContext(UserId("reader-1")), NovelId("novel-draft"))
 
 
+def test_publish_novel_rejects_republishing_an_existing_publication() -> None:
+    use_cases, _, _ = _use_cases(InMemoryNovelRepository([_published()]))
+    editor = UserContext(UserId("editor-1"), frozenset({"ROLE_EDITOR"}))
+
+    with pytest.raises(ConflictError, match="already published"):
+        use_cases.publish_novel(editor, NovelId("novel-published"))
+
+
 def test_update_draft_changes_owned_metadata_and_audit_fields() -> None:
     repository = InMemoryNovelRepository([_draft()])
     use_cases, novels, _ = _use_cases(repository)

@@ -80,6 +80,20 @@ def test_publish_route_rejects_reader() -> None:
     assert json.loads(response["body"])["error"] == "forbidden"
 
 
+def test_publish_route_rejects_republishing_an_existing_publication() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("editor-1"), frozenset({"ROLE_EDITOR"})),
+    ):
+        response = lambda_handler(
+            _event("POST", "/novels/novel-001/publish", headers={"authorization": "Bearer access-token"}),
+            None,
+        )
+
+    assert response["statusCode"] == 409
+    assert json.loads(response["body"])["error"] == "conflict"
+
+
 def test_get_novels_returns_paginated_list_when_authenticated() -> None:
     with patch(
         "albedo_novels_infrastructure.auth.JwtVerifier.verify",
