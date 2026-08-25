@@ -38,21 +38,46 @@ def test_health_route_returns_ok() -> None:
     }
 
 
-def test_unknown_route_is_not_implemented() -> None:
+def test_publish_route_returns_not_found_for_admin_when_novel_is_missing() -> None:
     with patch(
         "albedo_novels_infrastructure.auth.JwtVerifier.verify",
-        return_value=object(),
+        return_value=UserContext(UserId("admin-1"), frozenset({"ROLE_ADMIN"})),
     ):
         response = lambda_handler(
             _event("POST", "/novels/42/publish", headers={"authorization": "Bearer access-token"}),
             None,
         )
 
-    assert response["statusCode"] == 501
-    body = json.loads(response["body"])
-    assert body["error"] == "not_implemented"
-    assert body["method"] == "POST"
-    assert body["path"] == "/novels/42/publish"
+    assert response["statusCode"] == 404
+    assert json.loads(response["body"])["error"] == "not_found"
+
+
+def test_publish_route_publishes_existing_draft_for_editor() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("editor-1"), frozenset({"ROLE_EDITOR"})),
+    ):
+        response = lambda_handler(
+            _event("POST", "/novels/novel-004/publish", headers={"authorization": "Bearer access-token"}),
+            None,
+        )
+
+    assert response["statusCode"] == 200
+    assert json.loads(response["body"])["status"] == "published"
+
+
+def test_publish_route_rejects_reader() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("reader-1")),
+    ):
+        response = lambda_handler(
+            _event("POST", "/novels/novel-004/publish", headers={"authorization": "Bearer access-token"}),
+            None,
+        )
+
+    assert response["statusCode"] == 403
+    assert json.loads(response["body"])["error"] == "forbidden"
 
 
 def test_get_novels_returns_paginated_list_when_authenticated() -> None:
@@ -168,7 +193,7 @@ def test_update_draft_rejects_published_novel() -> None:
     assert json.loads(response["body"])["error"] == "conflict"
 
 
-def test_planned_route_returns_401_when_bearer_missing() -> None:
+def test_publish_route_returns_401_when_bearer_missing() -> None:
     response = lambda_handler(_event("POST", "/novels/42/publish"), None)
 
     assert response["statusCode"] == 401

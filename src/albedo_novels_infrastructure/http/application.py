@@ -113,6 +113,17 @@ class HttpApplication:
             except ConflictError as error:
                 return HttpResponse(409, {"error": "conflict", "message": str(error)})
             return HttpResponse(200, novel_to_dict(novel))
+        if route.handler == "publish_novel":
+            novel_id_raw = path_params.get("novel_id") or _last_path_segment(request.path)
+            try:
+                novel = self._use_cases.publish_novel(user, NovelId(str(novel_id_raw)))
+            except NotFoundError as error:
+                return HttpResponse(404, {"error": "not_found", "message": str(error)})
+            except ForbiddenError as error:
+                return HttpResponse(403, {"error": "forbidden", "message": str(error)})
+            except ConflictError as error:
+                return HttpResponse(409, {"error": "conflict", "message": str(error)})
+            return HttpResponse(200, novel_to_dict(novel))
         if route.handler == "add_favorite":
             novel_id_raw = path_params.get("novel_id") or _last_path_segment(request.path)
             try:
