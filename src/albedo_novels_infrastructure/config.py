@@ -5,6 +5,10 @@ from dataclasses import dataclass
 from typing import Mapping
 
 
+ALLOWED_METHODS = "GET, POST, PATCH, PUT, DELETE, OPTIONS"
+ALLOWED_HEADERS = "Authorization, Content-Type"
+
+
 @dataclass(frozen=True)
 class RuntimeConfig:
     auth_issuer: str
@@ -42,6 +46,18 @@ def cors_headers(request_headers: Mapping[str, object], config: RuntimeConfig | 
     return {
         "Access-Control-Allow-Origin": origin,
         "Vary": "Origin",
+    }
+
+
+def cors_preflight_headers(request_headers: Mapping[str, object], config: RuntimeConfig | None = None) -> dict[str, str]:
+    """Return preflight headers only when the request origin is configured."""
+    headers = cors_headers(request_headers, config)
+    if not headers:
+        return {}
+    return {
+        **headers,
+        "Access-Control-Allow-Methods": ALLOWED_METHODS,
+        "Access-Control-Allow-Headers": ALLOWED_HEADERS,
     }
 
 

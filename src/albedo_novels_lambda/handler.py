@@ -6,7 +6,7 @@ from typing import Any
 
 from albedo_novels_infrastructure.auth import JwtAuthenticator
 from albedo_novels_infrastructure.composition import build_content_use_cases, build_use_cases
-from albedo_novels_infrastructure.config import cors_headers
+from albedo_novels_infrastructure.config import cors_headers, cors_preflight_headers
 from albedo_novels_infrastructure.http import HttpApplication, HttpRequest, HttpResponse
 
 
@@ -18,6 +18,8 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         query=_query(event),
         body=_body(event),
     )
+    if request.method == "OPTIONS":
+        return _lambda_response(HttpResponse(204, {}, cors_preflight_headers(request.headers)), request.headers)
     return _lambda_response(_application().handle(request), request.headers)
 
 
