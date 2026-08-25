@@ -5,7 +5,7 @@ import base64
 from typing import Any
 
 from albedo_novels_infrastructure.auth import JwtAuthenticator
-from albedo_novels_infrastructure.composition import build_use_cases
+from albedo_novels_infrastructure.composition import build_content_use_cases, build_use_cases
 from albedo_novels_infrastructure.http import HttpApplication, HttpRequest, HttpResponse
 
 
@@ -21,7 +21,7 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
 
 def _application() -> HttpApplication:
-    return HttpApplication(build_use_cases(), JwtAuthenticator())
+    return HttpApplication(build_use_cases(), JwtAuthenticator(), build_content_use_cases())
 
 
 def _lambda_response(response: HttpResponse) -> dict[str, Any]:

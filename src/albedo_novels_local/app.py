@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from albedo_novels_infrastructure.auth import JwtAuthenticator
-from albedo_novels_infrastructure.composition import build_use_cases
+from albedo_novels_infrastructure.composition import build_content_use_cases, build_use_cases
 from albedo_novels_infrastructure.http import HttpApplication, HttpRequest, ROUTES, Route
 
 
@@ -12,7 +12,7 @@ app = FastAPI(title="Albedo Novel Service")
 
 
 def _application() -> HttpApplication:
-    return HttpApplication(build_use_cases(), JwtAuthenticator())
+    return HttpApplication(build_use_cases(), JwtAuthenticator(), build_content_use_cases())
 
 
 def _endpoint(route: Route):

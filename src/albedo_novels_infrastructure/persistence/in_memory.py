@@ -3,7 +3,38 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from albedo_novels_core.domain.models import LibraryEntry, Novel, NovelId, NovelStatus, UserId
+from albedo_novels_core.domain.models import (
+    ChapterContent,
+    ChapterContentMetadata,
+    ChapterId,
+    LibraryEntry,
+    Novel,
+    NovelId,
+    NovelStatus,
+    UserId,
+)
+
+
+class InMemoryContentStorage:
+    """Store chapter versions independently from novel metadata."""
+
+    def __init__(self) -> None:
+        self._content: dict[tuple[NovelId, ChapterId, int], ChapterContent] = {}
+
+    def save(self, content: ChapterContent) -> ChapterContent:
+        self._content[(content.novel_id, content.chapter_id, content.version)] = content
+        return content
+
+    def get_latest(self, novel_id: NovelId, chapter_id: ChapterId) -> ChapterContent | None:
+        versions = [item for item in self._content.values() if item.novel_id == novel_id and item.chapter_id == chapter_id]
+        return max(versions, key=lambda item: item.version, default=None)
+
+    def get_version(self, novel_id: NovelId, chapter_id: ChapterId, version: int) -> ChapterContent | None:
+        return self._content.get((novel_id, chapter_id, version))
+
+    def list_versions(self, novel_id: NovelId, chapter_id: ChapterId) -> list[ChapterContentMetadata]:
+        versions = [item for item in self._content.values() if item.novel_id == novel_id and item.chapter_id == chapter_id]
+        return [item.metadata() for item in sorted(versions, key=lambda item: item.version, reverse=True)]
 
 
 class InMemoryNovelRepository:

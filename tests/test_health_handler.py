@@ -323,3 +323,18 @@ def test_remove_favorite_requires_authentication() -> None:
     response = lambda_handler(_event("DELETE", "/library/novel-001/favorite"), None)
 
     assert response["statusCode"] == 401
+
+
+def test_chapter_content_routes_write_read_and_list_versions() -> None:
+    user = UserContext(UserId("user-1"))
+    headers = {"authorization": "Bearer access-token"}
+    with patch("albedo_novels_infrastructure.auth.JwtVerifier.verify", return_value=user):
+        first = lambda_handler(_event("PUT", "/novels/novel-004/chapters/chapter-2", headers=headers, body={"body": "Draft"}), None)
+        second = lambda_handler(_event("PUT", "/novels/novel-004/chapters/chapter-2", headers=headers, body={"body": "Revised"}), None)
+        latest = lambda_handler(_event("GET", "/novels/novel-004/chapters/chapter-2", headers=headers), None)
+        versions = lambda_handler(_event("GET", "/novels/novel-004/chapters/chapter-2/versions", headers=headers), None)
+
+    assert first["statusCode"] == 201
+    assert json.loads(second["body"])["version"] == 2
+    assert json.loads(latest["body"])["body"] == "Revised"
+    assert [item["version"] for item in json.loads(versions["body"])["items"]] == [2, 1]

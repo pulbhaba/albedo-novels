@@ -7,6 +7,7 @@ from typing import Any, Mapping, NewType
 
 NovelId = NewType("NovelId", str)
 UserId = NewType("UserId", str)
+ChapterId = NewType("ChapterId", str)
 
 
 class NovelStatus(StrEnum):
@@ -81,3 +82,33 @@ class LibraryNovel:
 
     novel: Novel
     favorited_at: str
+
+
+@dataclass(frozen=True)
+class ChapterContent:
+    """One immutable version of a chapter's large text body."""
+
+    novel_id: NovelId
+    chapter_id: ChapterId
+    version: int
+    body: str
+    created_at: str
+    created_by: UserId
+
+    def metadata(self) -> "ChapterContentMetadata":
+        return ChapterContentMetadata(
+            novel_id=self.novel_id,
+            chapter_id=self.chapter_id,
+            version=self.version,
+            created_at=self.created_at,
+            created_by=self.created_by,
+        )
+
+
+@dataclass(frozen=True)
+class ChapterContentMetadata:
+    novel_id: NovelId
+    chapter_id: ChapterId
+    version: int
+    created_at: str
+    created_by: UserId
