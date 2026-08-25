@@ -66,6 +66,20 @@ Use this handler when wiring API Gateway to Lambda:
 albedo_novels_lambda.handler.lambda_handler
 ```
 
+## CloudWatch logging and monitoring
+
+The Lambda adapter emits one JSON log record when a request starts and one when
+it completes. Records include the event name, method, path, status code,
+duration, and (when supplied by the runtime) the Lambda request ID. Unexpected
+exceptions produce a traceback record and a `request.failed` record before
+being re-raised so the Lambda invocation still reports a failure.
+
+The deployment role must include the standard `AWSLambdaBasicExecutionRole`
+permissions (`logs:CreateLogGroup`, `logs:CreateLogStream`, and
+`logs:PutLogEvents`). Configure a CloudWatch log group with an appropriate
+retention period and add alarms or metric filters for `request.failed`, `ERROR`
+records, and elevated 4xx/5xx rates in the service's infrastructure definition.
+
 ## Lambda Packaging
 
 Build the deployable Lambda ZIP from the repository root:

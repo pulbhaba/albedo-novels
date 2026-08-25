@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-import json
 import base64
+import json
+import logging
+from time import perf_counter
 from typing import Any
 
 from albedo_novels_infrastructure.auth import JwtAuthenticator
 from albedo_novels_infrastructure.composition import build_content_use_cases, build_use_cases
 from albedo_novels_infrastructure.config import cors_headers, cors_preflight_headers
 from albedo_novels_infrastructure.http import HttpApplication, HttpRequest, HttpResponse
+from albedo_novels_infrastructure.observability import configure_logging
 
 
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+    logger = configure_logging()
     request = HttpRequest(
         method=_method(event),
         path=_path(event),
@@ -18,9 +22,58 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         query=_query(event),
         body=_body(event),
     )
-    if request.method == "OPTIONS":
-        return _lambda_response(HttpResponse(204, {}, cors_preflight_headers(request.headers)), request.headers)
-    return _lambda_response(_application().handle(request), request.headers)
+    started = perf_counter()
+    request_id = getattr(_context, "aws_request_id", None)
+    failed = False
+    logger.info(
+        "request started",
+        extra={"event": "request.started", "method": request.method, "path": request.path, "request_id": request_id},
+    )
+    response: HttpResponse | None = None
+    try:
+        if request.method == "OPTIONS":
+            response = HttpResponse(204, {}, cors_preflight_headers(request.headers))
+        else:
+            response = _application().handle(request)
+        return _lambda_response(response, request.headers)
+    except Exception:
+        failed = True
+        logger.exception(
+            "request failed unexpectedly",
+            extra={
+                "event": "request.exception",
+                "method": request.method,
+                "path": request.path,
+                "request_id": request_id,
+            },
+        )
+        raise
+    finally:
+        duration_ms = round((perf_counter() - started) * 1000, 2)
+        logger.log(
+            logging.ERROR
+            if failed
+            else logging.WARNING
+            if response is not None and response.status_code >= 400
+            else logging.INFO,
+            "request failed"
+            if failed
+            else "request completed"
+            if response is not None
+            else "request terminated",
+            extra={
+                "event": "request.failed"
+                if failed
+                else "request.completed"
+                if response is not None
+                else "request.terminated",
+                "method": request.method,
+                "path": request.path,
+                "status_code": response.status_code if response is not None and not failed else 500,
+                "duration_ms": duration_ms,
+                "request_id": request_id,
+            },
+        )
 
 
 def _application() -> HttpApplication:
