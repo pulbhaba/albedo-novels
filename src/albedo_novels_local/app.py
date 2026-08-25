@@ -1,14 +1,23 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from albedo_novels_infrastructure.auth import JwtAuthenticator
 from albedo_novels_infrastructure.composition import build_content_use_cases, build_use_cases
+from albedo_novels_infrastructure.config import cors_allowed_origins
 from albedo_novels_infrastructure.http import HttpApplication, HttpRequest, ROUTES, Route
 
 
 app = FastAPI(title="Albedo Novel Service")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(cors_allowed_origins()),
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def _application() -> HttpApplication:

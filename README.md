@@ -41,6 +41,10 @@ suitable for the local stack and are pre-populated in
   Defaults to `albedo-novel-service`.
 - `AUTH_JWKS_URL` — JWKS endpoint used to verify token signatures. Defaults
   to `http://auth-api:8080/oauth2/jwks`, the in-stack auth-api endpoint.
+- `NOVELS_TABLE_NAME` — SQL table used for novel metadata. Defaults to
+  `novels`; it must be a simple SQL identifier.
+- `CORS_ALLOWED_ORIGINS` — comma-separated browser origins allowed by the local
+  adapter and Lambda responses. Defaults to no allowed origins.
 
 Override any of these in `infrastructure/.env` to point the novels service at
 an external auth deployment.
