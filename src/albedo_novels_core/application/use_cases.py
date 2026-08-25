@@ -5,6 +5,7 @@ from typing import Sequence
 
 from albedo_novels_core.application.ports import (
     Clock,
+    ContentStoragePort,
     IdGenerator,
     LibraryRepository,
     NovelRepository,
@@ -17,6 +18,9 @@ from albedo_novels_core.domain.models import (
     NovelStatus,
     UserContext,
     UserId,
+    ChapterContent,
+    ChapterContentMetadata,
+    ChapterId,
 )
 
 
@@ -164,6 +168,59 @@ class NovelUseCases:
         if not novel.is_readable_by(user):
             raise ForbiddenError("Novel is not readable by the current user.")
         return novel
+
+    def _load_novel(self, novel_id: NovelId) -> Novel:
+        novel = self._novels.get(novel_id)
+        if novel is None:
+            raise NotFoundError("Novel was not found.")
+        return novel
+
+
+class ChapterContentUseCases:
+    """Authorize and coordinate versioned chapter body storage."""
+
+    def __init__(self, novels: NovelRepository, content: ContentStoragePort, clock: Clock) -> None:
+        self._novels = novels
+        self._content = content
+        self._clock = clock
+
+    def get_latest(self, user: UserContext, novel_id: NovelId, chapter_id: ChapterId) -> ChapterContent:
+        self._authorize_read(user, novel_id)
+        content = self._content.get_latest(novel_id, chapter_id)
+        if content is None:
+            raise NotFoundError("Chapter content was not found.")
+        return content
+
+    def get_version(self, user: UserContext, novel_id: NovelId, chapter_id: ChapterId, version: int) -> ChapterContent:
+        self._authorize_read(user, novel_id)
+        content = self._content.get_version(novel_id, chapter_id, version)
+        if content is None:
+            raise NotFoundError("Chapter content was not found.")
+        return content
+
+    def list_versions(self, user: UserContext, novel_id: NovelId, chapter_id: ChapterId) -> list[ChapterContentMetadata]:
+        self._authorize_read(user, novel_id)
+        return self._content.list_versions(novel_id, chapter_id)
+
+    def write(self, user: UserContext, novel_id: NovelId, chapter_id: ChapterId, body: str) -> ChapterContent:
+        novel = self._load_novel(novel_id)
+        if novel.author_id != user.user_id and not user.can_publish:
+            raise ForbiddenError("Only the novel owner or an editor can write chapter content.")
+        current = self._content.get_latest(novel_id, chapter_id)
+        version = current.version + 1 if current is not None else 1
+        return self._content.save(ChapterContent(
+            novel_id=novel_id,
+            chapter_id=chapter_id,
+            version=version,
+            body=body,
+            created_at=self._clock.utcnow_iso(),
+            created_by=user.user_id,
+        ))
+
+    def _authorize_read(self, user: UserContext, novel_id: NovelId) -> None:
+        novel = self._load_novel(novel_id)
+        if not novel.is_readable_by(user):
+            raise ForbiddenError("Novel is not readable by the current user.")
 
     def _load_novel(self, novel_id: NovelId) -> Novel:
         novel = self._novels.get(novel_id)

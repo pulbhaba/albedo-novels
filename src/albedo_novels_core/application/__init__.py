@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from albedo_novels_core.application.ports import (
     Clock,
+    ContentStoragePort,
     IdGenerator,
     LibraryRepository,
     NovelRepository,
@@ -22,11 +23,13 @@ from albedo_novels_core.application.use_cases import (
     NovelListPage,
     UpdateNovelCommand,
     NovelUseCases,
+    ChapterContentUseCases,
 )
 
 __all__ = [
     "Clock",
     "ConflictError",
+    "ContentStoragePort",
     "CreateNovelCommand",
     "DEFAULT_LIST_LIMIT",
     "ForbiddenError",
@@ -38,5 +41,6 @@ __all__ = [
     "NovelListPage",
     "NovelRepository",
     "NovelUseCases",
+    "ChapterContentUseCases",
     "UpdateNovelCommand",
 ]

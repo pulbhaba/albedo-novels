@@ -6,6 +6,7 @@ from typing import Any, Mapping
 
 from albedo_novels_core.application import (
     ConflictError,
+    ChapterContentUseCases,
     CreateNovelCommand,
     ForbiddenError,
     ListNovelsQuery,
@@ -14,7 +15,7 @@ from albedo_novels_core.application import (
     UpdateNovelCommand,
 )
 from albedo_novels_core.application.ports import Authenticator
-from albedo_novels_core.domain.models import LibraryEntry, LibraryNovel, Novel, NovelId, NovelStatus, UserContext, UserId
+from albedo_novels_core.domain.models import ChapterContent, ChapterContentMetadata, ChapterId, LibraryEntry, LibraryNovel, Novel, NovelId, NovelStatus, UserContext, UserId
 from albedo_novels_infrastructure.auth import AuthenticationError
 from .routes import ROUTES, Route
 
@@ -43,9 +44,10 @@ class HttpResponse:
 class HttpApplication:
     """Shared request dispatch, auth, pagination, and public JSON shaping."""
 
-    def __init__(self, use_cases: NovelUseCases, authenticator: Authenticator) -> None:
+    def __init__(self, use_cases: NovelUseCases, authenticator: Authenticator, content_use_cases: ChapterContentUseCases | None = None) -> None:
         self._use_cases = use_cases
         self._authenticator = authenticator
+        self._content_use_cases = content_use_cases
 
     def handle(self, request: HttpRequest) -> HttpResponse:
         matched = _match_route(request.method, request.path)
@@ -129,6 +131,28 @@ class HttpApplication:
                 200,
                 {"items": [library_novel_to_dict(item) for item in self._use_cases.list_library(user)]},
             )
+        if route.handler in {"get_chapter", "list_chapter_versions", "write_chapter"}:
+            if self._content_use_cases is None:
+                return self._planned_response(request)
+            novel_id = NovelId(path_params["novel_id"])
+            chapter_id = ChapterId(path_params["chapter_id"])
+            try:
+                if route.handler == "get_chapter":
+                    content = self._content_use_cases.get_latest(user, novel_id, chapter_id)
+                    return HttpResponse(200, chapter_content_to_dict(content))
+                if route.handler == "list_chapter_versions":
+                    versions = self._content_use_cases.list_versions(user, novel_id, chapter_id)
+                    return HttpResponse(200, {"items": [chapter_metadata_to_dict(item) for item in versions]})
+                body, error = _chapter_body(request.body)
+                if error is not None:
+                    return HttpResponse(400, {"error": "validation_error", "message": error})
+                assert body is not None
+                content = self._content_use_cases.write(user, novel_id, chapter_id, body)
+                return HttpResponse(201, chapter_content_to_dict(content))
+            except NotFoundError as error:
+                return HttpResponse(404, {"error": "not_found", "message": str(error)})
+            except ForbiddenError as error:
+                return HttpResponse(403, {"error": "forbidden", "message": str(error)})
         return self._planned_response(request)
 
     @staticmethod
@@ -244,6 +268,29 @@ def library_novel_to_dict(item: LibraryNovel) -> dict[str, Any]:
         "novel": novel_to_dict(novel),
         "favoritedAt": item.favorited_at,
     }
+
+
+def chapter_content_to_dict(content: ChapterContent) -> dict[str, Any]:
+    return {**chapter_metadata_to_dict(content.metadata()), "body": content.body}
+
+
+def chapter_metadata_to_dict(content: ChapterContentMetadata) -> dict[str, Any]:
+    return {
+        "novelId": content.novel_id,
+        "chapterId": content.chapter_id,
+        "version": content.version,
+        "createdAt": content.created_at,
+        "createdBy": content.created_by,
+    }
+
+
+def _chapter_body(body: object) -> tuple[str | None, str | None]:
+    if not isinstance(body, Mapping):
+        return None, "Request body must be a JSON object."
+    content = body.get("body")
+    if not isinstance(content, str) or not content:
+        return None, "body is required and must be a non-empty string."
+    return content, None
 
 
 def _last_path_segment(path: str) -> str:

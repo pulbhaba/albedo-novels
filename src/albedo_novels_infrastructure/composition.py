@@ -4,13 +4,18 @@ from datetime import datetime, timezone
 import os
 from uuid import uuid4
 
-from albedo_novels_core.application import NovelUseCases
-from albedo_novels_infrastructure.persistence.in_memory import InMemoryLibraryRepository
+from albedo_novels_core.application import ChapterContentUseCases, NovelUseCases
+from albedo_novels_infrastructure.persistence.in_memory import InMemoryContentStorage, InMemoryLibraryRepository
 from albedo_novels_infrastructure.persistence.seeded_novel_dao import dao_test
 from albedo_novels_infrastructure.persistence.sqlalchemy import SqlAlchemyLibraryRepository, SqlAlchemyNovelRepository
 
 
 _LOCAL_LIBRARY = InMemoryLibraryRepository()
+_LOCAL_CONTENT = InMemoryContentStorage()
+
+
+def _repositories() -> tuple[object, object]:
+    return dao_test(), _LOCAL_CONTENT
 
 
 def build_use_cases() -> NovelUseCases:
@@ -20,6 +25,11 @@ def build_use_cases() -> NovelUseCases:
         ids=UuidIdGenerator(),
         clock=SystemClock(),
     )
+
+
+def build_content_use_cases() -> ChapterContentUseCases:
+    novels, content = _repositories()
+    return ChapterContentUseCases(novels=novels, content=content, clock=SystemClock())
 
 
 def build_mysql_use_cases() -> NovelUseCases:

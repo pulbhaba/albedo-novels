@@ -354,3 +354,17 @@ def test_remove_favorite_requires_authentication() -> None:
     response = _request("DELETE", "/library/novel-001/favorite")
 
     assert response.status_code == 401
+
+
+def test_chapter_content_routes_write_read_and_list_versions() -> None:
+    user = UserContext(UserId("user-1"))
+    with patch("albedo_novels_infrastructure.auth.JwtVerifier.verify", return_value=user):
+        first = _request("PUT", "/novels/novel-004/chapters/chapter-1", headers=_build_event_headers(), body={"body": "Draft"})
+        second = _request("PUT", "/novels/novel-004/chapters/chapter-1", headers=_build_event_headers(), body={"body": "Revised"})
+        latest = _request("GET", "/novels/novel-004/chapters/chapter-1", headers=_build_event_headers())
+        versions = _request("GET", "/novels/novel-004/chapters/chapter-1/versions", headers=_build_event_headers())
+
+    assert first.status_code == 201
+    assert second.json()["version"] == 2
+    assert latest.json()["body"] == "Revised"
+    assert [item["version"] for item in versions.json()["items"]] == [2, 1]

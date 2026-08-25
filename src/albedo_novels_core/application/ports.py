@@ -11,7 +11,30 @@ class Authenticator(Protocol):
     def authenticate(self, headers: Mapping[str, object]) -> UserContext:
         ...
 
-from albedo_novels_core.domain.models import Novel, NovelId, UserId
+from albedo_novels_core.domain.models import (
+    ChapterContent,
+    ChapterContentMetadata,
+    ChapterId,
+    Novel,
+    NovelId,
+    UserId,
+)
+
+
+class ContentStoragePort(Protocol):
+    """Persist and retrieve immutable chapter body versions."""
+
+    def save(self, content: ChapterContent) -> ChapterContent:
+        ...
+
+    def get_latest(self, novel_id: NovelId, chapter_id: ChapterId) -> ChapterContent | None:
+        ...
+
+    def get_version(self, novel_id: NovelId, chapter_id: ChapterId, version: int) -> ChapterContent | None:
+        ...
+
+    def list_versions(self, novel_id: NovelId, chapter_id: ChapterId) -> list[ChapterContentMetadata]:
+        ...
 
 
 class NovelRepository(Protocol):

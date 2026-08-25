@@ -121,6 +121,24 @@ The authenticated `DELETE /library/{novelId}/favorite` endpoint removes the
 favorite for the current user and returns `204 No Content`; repeating the
 request is safe and returns the same response.
 
+### Chapter content
+
+Chapter bodies are kept behind a content storage port so they do not become
+part of the novel metadata model. The initial in-memory adapter supports these
+authenticated routes:
+
+- `GET /novels/{novelId}/chapters/{chapterId}` returns the latest version,
+  including its `body`.
+- `GET /novels/{novelId}/chapters/{chapterId}/versions` returns version
+  metadata, newest first.
+- `PUT /novels/{novelId}/chapters/{chapterId}` with `{"body": "..."}` creates
+  the next immutable version and returns it.
+
+Published chapter content is readable by any authenticated reader; draft
+content is readable by its owner or an editor/admin. Owners and editor/admin
+users may write content. S3 storage and presigned URLs remain a follow-up to
+the storage decision in issue #22.
+
 ## SQLAlchemy persistence
 
 Novel persistence stores lightweight metadata only. The `novels` table contains
