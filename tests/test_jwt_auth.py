@@ -36,29 +36,14 @@ def test_runtime_config_reads_adapter_environment_values() -> None:
             "AUTH_ISSUER": "issuer",
             "AUTH_AUDIENCE": "audience",
             "AUTH_JWKS_URL": "https://auth.example.test/jwks",
-            "NOVELS_TABLE_NAME": "novel_metadata",
             "CORS_ALLOWED_ORIGINS": "https://reader.example, https://editor.example",
         }
     )
 
-    assert config.novels_table_name == "novel_metadata"
     assert config.cors_allowed_origins == (
         "https://reader.example",
         "https://editor.example",
     )
-
-
-def test_runtime_config_rejects_invalid_novel_table_name() -> None:
-    with pytest.raises(ValueError, match="NOVELS_TABLE_NAME"):
-        RuntimeConfig.from_environment(
-            {
-                "AUTH_ISSUER": "issuer",
-                "AUTH_AUDIENCE": "audience",
-                "AUTH_JWKS_URL": "jwks",
-                "NOVELS_TABLE_NAME": "novels; DROP TABLE users",
-            }
-        )
-
 
 def test_verifier_builds_user_context_from_valid_claims(monkeypatch: pytest.MonkeyPatch) -> None:
     config = JwtConfig("issuer", "audience", "https://auth.example.test/jwks")

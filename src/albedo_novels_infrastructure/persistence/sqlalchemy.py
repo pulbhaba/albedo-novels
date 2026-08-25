@@ -8,18 +8,12 @@ from sqlalchemy import CheckConstraint, ForeignKey, Index, String, delete, func,
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from albedo_novels_core.domain.models import LibraryEntry, Novel, NovelId, NovelStatus, UserId
-from albedo_novels_infrastructure.config import novels_table_name
-
-
-_NOVELS_TABLE_NAME = novels_table_name()
-
-
 class Base(DeclarativeBase):
     pass
 
 
 class NovelRow(Base):
-    __tablename__ = _NOVELS_TABLE_NAME
+    __tablename__ = "novels"
     __table_args__ = (
         CheckConstraint("status IN ('draft', 'published')", name="novels_status_check"),
         Index("novels_status_created_idx", "status", "created_at"),
@@ -39,7 +33,7 @@ class LibraryEntryRow(Base):
     __tablename__ = "library_entries"
     __table_args__ = (Index("library_entries_user_created_idx", "user_id", "created_at"),)
     user_id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    novel_id: Mapped[str] = mapped_column(ForeignKey(f"{_NOVELS_TABLE_NAME}.id", ondelete="CASCADE"), primary_key=True)
+    novel_id: Mapped[str] = mapped_column(ForeignKey("novels.id", ondelete="CASCADE"), primary_key=True)
     created_at: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
