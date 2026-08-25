@@ -6,6 +6,7 @@ from typing import Any
 
 from albedo_novels_infrastructure.auth import JwtAuthenticator
 from albedo_novels_infrastructure.composition import build_content_use_cases, build_use_cases
+from albedo_novels_infrastructure.config import cors_headers
 from albedo_novels_infrastructure.http import HttpApplication, HttpRequest, HttpResponse
 
 
@@ -17,17 +18,19 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         query=_query(event),
         body=_body(event),
     )
-    return _lambda_response(_application().handle(request))
+    return _lambda_response(_application().handle(request), request.headers)
 
 
 def _application() -> HttpApplication:
     return HttpApplication(build_use_cases(), JwtAuthenticator(), build_content_use_cases())
 
 
-def _lambda_response(response: HttpResponse) -> dict[str, Any]:
+def _lambda_response(response: HttpResponse, request_headers: dict[str, str] | None = None) -> dict[str, Any]:
+    headers = {"Content-Type": "application/json", **response.headers}
+    headers.update(cors_headers(request_headers or {}))
     return {
         "statusCode": response.status_code,
-        "headers": {"Content-Type": "application/json", **response.headers},
+        "headers": headers,
         "body": json.dumps(response.body),
     }
 

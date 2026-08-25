@@ -4,6 +4,7 @@ import pytest
 from jwt.exceptions import ExpiredSignatureError
 
 from albedo_novels_infrastructure.auth import AuthenticationError, JwtConfig, JwtVerifier, bearer_token
+from albedo_novels_infrastructure.config import RuntimeConfig
 
 
 class FakeJwksClient:
@@ -28,6 +29,21 @@ def test_jwt_config_rejects_missing_values() -> None:
     with pytest.raises(ValueError, match="AUTH_AUDIENCE"):
         JwtConfig.from_environment({"AUTH_ISSUER": "issuer"})
 
+
+def test_runtime_config_reads_adapter_environment_values() -> None:
+    config = RuntimeConfig.from_environment(
+        {
+            "AUTH_ISSUER": "issuer",
+            "AUTH_AUDIENCE": "audience",
+            "AUTH_JWKS_URL": "https://auth.example.test/jwks",
+            "CORS_ALLOWED_ORIGINS": "https://reader.example, https://editor.example",
+        }
+    )
+
+    assert config.cors_allowed_origins == (
+        "https://reader.example",
+        "https://editor.example",
+    )
 
 def test_verifier_builds_user_context_from_valid_claims(monkeypatch: pytest.MonkeyPatch) -> None:
     config = JwtConfig("issuer", "audience", "https://auth.example.test/jwks")

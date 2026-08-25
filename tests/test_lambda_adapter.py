@@ -85,6 +85,28 @@ def test_lambda_maps_api_gateway_v1_event_to_paginated_json_response() -> None:
     }
 
 
+def test_lambda_adds_cors_headers_for_configured_origin(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://reader.example")
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=object(),
+    ):
+        response = lambda_handler(
+            _v2_event(
+                "GET",
+                "/novels",
+                headers={
+                    "authorization": "Bearer access-token",
+                    "origin": "https://reader.example",
+                },
+            ),
+            None,
+        )
+
+    assert response["headers"]["Access-Control-Allow-Origin"] == "https://reader.example"
+    assert response["headers"]["Vary"] == "Origin"
+
+
 def test_lambda_maps_invalid_pagination_to_safe_defaults() -> None:
     with patch(
         "albedo_novels_infrastructure.auth.JwtVerifier.verify",

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import Any, Mapping
 
@@ -9,6 +8,7 @@ from jwt import PyJWKClient
 from jwt.exceptions import PyJWTError
 
 from albedo_novels_core.domain.models import UserContext, UserId
+from albedo_novels_infrastructure.config import RuntimeConfig
 
 
 class AuthenticationError(Exception):
@@ -23,19 +23,11 @@ class JwtConfig:
 
     @classmethod
     def from_environment(cls, environment: Mapping[str, str] | None = None) -> "JwtConfig":
-        values = os.environ if environment is None else environment
-        required = {
-            "AUTH_ISSUER": values.get("AUTH_ISSUER", "").strip(),
-            "AUTH_AUDIENCE": values.get("AUTH_AUDIENCE", "").strip(),
-            "AUTH_JWKS_URL": values.get("AUTH_JWKS_URL", "").strip(),
-        }
-        missing = [name for name, value in required.items() if not value]
-        if missing:
-            raise ValueError(f"Missing required authentication configuration: {', '.join(missing)}")
+        config = RuntimeConfig.from_environment(environment)
         return cls(
-            issuer=required["AUTH_ISSUER"],
-            audience=required["AUTH_AUDIENCE"],
-            jwks_url=required["AUTH_JWKS_URL"],
+            issuer=config.auth_issuer,
+            audience=config.auth_audience,
+            jwks_url=config.auth_jwks_url,
         )
 
 

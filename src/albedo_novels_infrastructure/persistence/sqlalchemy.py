@@ -8,8 +8,6 @@ from sqlalchemy import CheckConstraint, ForeignKey, Index, String, delete, func,
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from albedo_novels_core.domain.models import LibraryEntry, Novel, NovelId, NovelStatus, UserId
-
-
 class Base(DeclarativeBase):
     pass
 
