@@ -8,7 +8,7 @@ def test_route_matching_extracts_named_parameter_from_suffixed_path() -> None:
 
     assert matched is not None
     route, path_params = matched
-    assert route.handler == "planned"
+    assert route.handler == "publish_novel"
     assert path_params == {"novel_id": "novel-123"}
 
 

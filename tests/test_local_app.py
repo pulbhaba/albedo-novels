@@ -213,7 +213,7 @@ def test_update_draft_rejects_non_owner_published_and_invalid_requests() -> None
     assert invalid.json()["error"] == "validation_error"
 
 
-def test_planned_route_auth_failure_matches_lambda_semantics() -> None:
+def test_publish_route_auth_failure_matches_lambda_semantics() -> None:
     response = _request("POST", "/novels/42/publish")
 
     assert response.status_code == 401
@@ -221,6 +221,39 @@ def test_planned_route_auth_failure_matches_lambda_semantics() -> None:
         "error": "unauthorized",
         "message": "A bearer token is required.",
     }
+
+
+def test_publish_route_publishes_draft_for_editor() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("editor-1"), frozenset({"ROLE_EDITOR"})),
+    ):
+        response = _request(
+            "POST",
+            "/novels/novel-004/publish",
+            headers=_build_event_headers(),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "published"
+
+
+def test_publish_route_rejects_reader_and_missing_novel() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("reader-1")),
+    ):
+        forbidden = _request("POST", "/novels/novel-004/publish", headers=_build_event_headers())
+
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("editor-1"), frozenset({"ROLE_EDITOR"})),
+    ):
+        missing = _request("POST", "/novels/novel-missing/publish", headers=_build_event_headers())
+
+    assert forbidden.status_code == 403
+    assert forbidden.json()["error"] == "forbidden"
+    assert missing.status_code == 404
 
 
 def test_local_module_exposes_python_module_entrypoint() -> None:
