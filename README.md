@@ -113,8 +113,31 @@ The authenticated `PATCH /novels/{novelId}` endpoint updates the title and/or
 ISBN of an owned draft. It returns `403` for another user's draft, `409` for a
 published novel, and `400` when no editable field or an invalid value is sent.
 The authenticated `POST /novels/{novelId}/publish` endpoint publishes a draft;
-only users with `ROLE_EDITOR` or `ROLE_ADMIN` may use it. It returns `403` for
-other roles and `404` when the novel does not exist.
+only users with `ROLE_EDITOR` or `ROLE_ADMIN` may use it. Publishing is
+immediate; there is no submission or review queue in the current workflow. The
+endpoint accepts drafts and returns the published novel with `200`; it returns
+`401` without authentication, `403` for other roles, `404` when the novel does
+not exist, and `409` when the novel is already published. The editor/admin
+authorization is enforced in the core use case and applies equally to the
+local and Lambda adapters.
+
+### Publishing workflow
+
+The service uses immediate publication after editorial authorization. Authors
+create and edit drafts, then an editor or administrator publishes the draft in
+one explicit action. A publish request is a one-way `draft` → `published`
+transition; published novels cannot be republished or edited through the draft
+update path. The API does not expose submission, review, approval, rejection,
+or scheduled-publication states.
+
+Frontend clients should show the publish action only for drafts and only to
+users whose token includes `ROLE_EDITOR` or `ROLE_ADMIN`. After a successful
+publish, clients should refresh or replace the novel with the returned
+`status: "published"` representation and hide draft-edit and publish controls.
+Clients should present `403` as an authorization error and `409` as a stale
+state requiring a refresh. A future review workflow would require a separate
+API and domain decision rather than changing the meaning of this endpoint.
+
 The authenticated `PUT /library/{novelId}/favorite` endpoint adds a readable
 novel to the current user's library. Repeating the request is idempotent and
 returns the existing favorite. The local seeded composition keeps favorites in

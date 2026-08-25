@@ -284,6 +284,21 @@ def test_publish_route_rejects_reader_and_missing_novel() -> None:
     assert missing.status_code == 404
 
 
+def test_publish_route_rejects_republishing_an_existing_publication() -> None:
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("editor-1"), frozenset({"ROLE_EDITOR"})),
+    ):
+        response = _request(
+            "POST",
+            "/novels/novel-001/publish",
+            headers=_build_event_headers(),
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"] == "conflict"
+
+
 def test_local_module_exposes_python_module_entrypoint() -> None:
     module = importlib.import_module("albedo_novels_local.__main__")
 
