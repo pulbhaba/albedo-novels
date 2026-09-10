@@ -8,6 +8,8 @@ from albedo_novels_core.application import ChapterContentUseCases, NovelUseCases
 from albedo_novels_infrastructure.persistence.in_memory import InMemoryContentStorage, InMemoryLibraryRepository
 from albedo_novels_infrastructure.persistence.seeded_novel_dao import dao_test
 from albedo_novels_infrastructure.persistence.sqlalchemy import SqlAlchemyLibraryRepository, SqlAlchemyNovelRepository
+from albedo_novels_infrastructure.http.application import RequestStrategy
+from albedo_novels_infrastructure.http.strategies import build_strategies
 
 
 _LOCAL_LIBRARY = InMemoryLibraryRepository()
@@ -30,6 +32,10 @@ def build_use_cases() -> NovelUseCases:
 def build_content_use_cases() -> ChapterContentUseCases:
     novels, content = _repositories()
     return ChapterContentUseCases(novels=novels, content=content, clock=SystemClock())
+
+
+def build_http_strategies() -> dict[str, RequestStrategy]:
+    return build_strategies(build_use_cases(), build_content_use_cases())
 
 
 def build_mysql_use_cases() -> NovelUseCases:

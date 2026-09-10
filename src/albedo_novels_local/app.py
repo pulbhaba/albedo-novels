@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from albedo_novels_infrastructure.auth import JwtAuthenticator
-from albedo_novels_infrastructure.composition import build_content_use_cases, build_use_cases
+from albedo_novels_infrastructure.composition import build_http_strategies
 from albedo_novels_infrastructure.config import ALLOWED_HEADERS, ALLOWED_METHODS, cors_allowed_origins
 from albedo_novels_infrastructure.http import HttpApplication, HttpRequest, ROUTES, Route
 
@@ -21,7 +21,7 @@ app.add_middleware(
 
 
 def _application() -> HttpApplication:
-    return HttpApplication(build_use_cases(), JwtAuthenticator(), build_content_use_cases())
+    return HttpApplication(JwtAuthenticator(), build_http_strategies())
 
 
 def _endpoint(route: Route):
