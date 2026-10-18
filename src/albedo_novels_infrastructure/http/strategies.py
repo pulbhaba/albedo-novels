@@ -4,6 +4,7 @@ from typing import Any, Mapping
 
 from albedo_novels_core.application import (
     ChapterContentUseCases,
+    ChapterMetadataUseCases,
     ConflictError,
     CreateNovelCommand,
     ForbiddenError,
@@ -13,6 +14,7 @@ from albedo_novels_core.application import (
     UpdateNovelCommand,
 )
 from albedo_novels_core.domain.models import (
+    Chapter,
     ChapterContent,
     ChapterContentMetadata,
     ChapterId,
@@ -175,6 +177,41 @@ class GetChapterStrategy:
         return HttpResponse(200, chapter_content_to_dict(content))
 
 
+class ListChaptersStrategy:
+    def __init__(self, use_cases: ChapterMetadataUseCases) -> None:
+        self._use_cases = use_cases
+
+    def handle(self, request: HttpRequest, user: UserContext | None, path_params: Mapping[str, str]) -> HttpResponse:
+        assert user is not None
+        novel_id = NovelId(path_params["novel_id"])
+        try:
+            chapters = self._use_cases.list_chapters(user, novel_id)
+        except NotFoundError as error:
+            return _error_response(404, "not_found", error)
+        except ForbiddenError as error:
+            return _error_response(403, "forbidden", error)
+        return HttpResponse(200, {"items": [chapter_to_dict(item) for item in chapters]})
+
+
+class CreateChapterStrategy:
+    def __init__(self, use_cases: ChapterMetadataUseCases) -> None:
+        self._use_cases = use_cases
+
+    def handle(self, request: HttpRequest, user: UserContext | None, path_params: Mapping[str, str]) -> HttpResponse:
+        title, error = _chapter_title(request.body)
+        if error is not None:
+            return _validation_error(error)
+        assert title is not None
+        assert user is not None
+        try:
+            chapter = self._use_cases.create_chapter(user, NovelId(path_params["novel_id"]), title)
+        except NotFoundError as error:
+            return _error_response(404, "not_found", error)
+        except ForbiddenError as error:
+            return _error_response(403, "forbidden", error)
+        return HttpResponse(201, chapter_to_dict(chapter))
+
+
 class ListChapterVersionsStrategy:
     def __init__(self, use_cases: ChapterContentUseCases) -> None:
         self._use_cases = use_cases
@@ -224,6 +261,7 @@ class ChapterIds:
 def build_strategies(
     use_cases: NovelUseCases,
     content_use_cases: ChapterContentUseCases | None = None,
+    chapter_use_cases: ChapterMetadataUseCases | None = None,
 ) -> dict[str, RequestStrategy]:
     strategies: dict[str, RequestStrategy] = {
         "health": HealthStrategy(),
@@ -242,6 +280,13 @@ def build_strategies(
                 "get_chapter": GetChapterStrategy(content_use_cases),
                 "list_chapter_versions": ListChapterVersionsStrategy(content_use_cases),
                 "write_chapter": WriteChapterStrategy(content_use_cases),
+            }
+        )
+    if chapter_use_cases is not None:
+        strategies.update(
+            {
+                "list_chapters": ListChaptersStrategy(chapter_use_cases),
+                "create_chapter": CreateChapterStrategy(chapter_use_cases),
             }
         )
     return strategies
@@ -327,6 +372,15 @@ def chapter_content_to_dict(content: ChapterContent) -> dict[str, Any]:
     return {**chapter_metadata_to_dict(content.metadata()), "body": content.body}
 
 
+def chapter_to_dict(chapter: Chapter) -> dict[str, Any]:
+    return {
+        "novelId": chapter.novel_id,
+        "chapterId": chapter.chapter_id,
+        "title": chapter.title,
+        "displayOrder": chapter.display_order,
+    }
+
+
 def chapter_metadata_to_dict(content: ChapterContentMetadata) -> dict[str, Any]:
     return {
         "novelId": content.novel_id,
@@ -344,3 +398,14 @@ def _chapter_body(body: object) -> tuple[str | None, str | None]:
     if not isinstance(content, str) or not content:
         return None, "body is required and must be a non-empty string."
     return content, None
+
+
+def _chapter_title(body: object) -> tuple[str | None, str | None]:
+    if not isinstance(body, Mapping):
+        return None, "Request body must be a JSON object."
+    title = body.get("title")
+    if not isinstance(title, str) or not title.strip():
+        return None, "title is required and must be a non-empty string."
+    if len(title) > 255:
+        return None, "title must be 255 characters or fewer."
+    return title, None

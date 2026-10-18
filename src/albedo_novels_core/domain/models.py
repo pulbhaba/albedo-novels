@@ -112,3 +112,13 @@ class ChapterContentMetadata:
     version: int
     created_at: str
     created_by: UserId
+
+
+@dataclass(frozen=True)
+class Chapter:
+    """Lightweight chapter navigation metadata, separate from its body."""
+
+    novel_id: NovelId
+    chapter_id: ChapterId
+    title: str
+    display_order: int

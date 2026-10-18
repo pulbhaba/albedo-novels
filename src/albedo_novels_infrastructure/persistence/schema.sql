@@ -31,3 +31,13 @@ CREATE TABLE IF NOT EXISTS library_entries (
     KEY library_entries_user_created_idx (user_id, created_at),
     CONSTRAINT library_entries_novel_fk FOREIGN KEY (novel_id) REFERENCES novels (id) ON DELETE CASCADE
 );
+
+-- Chapter navigation metadata is kept separate from versioned chapter bodies.
+CREATE TABLE IF NOT EXISTS chapters (
+    id VARCHAR(255) NOT NULL PRIMARY KEY,
+    novel_id VARCHAR(255) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    display_order INTEGER NOT NULL,
+    CONSTRAINT chapters_novel_order_unique UNIQUE (novel_id, display_order),
+    CONSTRAINT chapters_novel_fk FOREIGN KEY (novel_id) REFERENCES novels (id) ON DELETE CASCADE
+);

@@ -163,11 +163,22 @@ The authenticated `DELETE /library/{novelId}/favorite` endpoint removes the
 favorite for the current user and returns `204 No Content`; repeating the
 request is safe and returns the same response.
 
-### Chapter content
+### Chapter metadata and content
 
-Chapter bodies are kept behind a content storage port so they do not become
-part of the novel metadata model. The initial in-memory adapter supports these
-authenticated routes:
+Chapter navigation metadata is stored separately from chapter bodies. The
+authenticated `GET /novels/{novelId}/chapters` endpoint returns
+`{"items":[{"novelId":"...","chapterId":"...","title":"...","displayOrder":1}]}`
+in ascending display order. The authenticated
+`POST /novels/{novelId}/chapters` endpoint accepts `{"title":"..."}` and
+returns the created chapter metadata with `201`; chapter IDs are stable and can
+be passed to the content routes below. Titles must be non-empty strings of at
+most 255 characters. Owners and editor/admin users can manage chapter
+metadata; listing follows the novel's read permissions. Missing novels return
+`404`, forbidden actions return `403`, and invalid titles return `400`.
+
+Chapter bodies are kept behind a separate content storage port so they do not
+become part of the chapter metadata model. The initial in-memory adapter
+supports these authenticated routes:
 
 - `GET /novels/{novelId}/chapters/{chapterId}` returns the latest version,
   including its `body`.
@@ -185,17 +196,19 @@ the storage decision in issue #22.
 
 Novel persistence stores lightweight metadata only. The `novels` table contains
 the title, author ID, publication status, ISBN, timestamps, and last modifier;
-covers, introductions, chapters, and full text belong in resource/content
+the `chapters` table contains chapter IDs, titles, and display order. Chapter
+bodies, covers, introductions, and full text belong in resource/content
 storage. The schema is in
 `src/albedo_novels_infrastructure/persistence/schema.sql`.
 The baseline ER model and its auth-owned `users` boundary are documented in
 [issue #35](https://github.com/pulbhaba/albedo-novels/issues/35); the SQLAlchemy
-models in the same persistence package implement its `novels` and
-`library_entries` tables.
+models in the same persistence package implement the `novels`,
+`library_entries`, and `chapters` tables.
 
-`build_mysql_use_cases()` uses SQLAlchemy with `NOVELS_DB_URL` (default:
-`mysql+mysqlconnector://root:test_pass@localhost:3306/auth`) and implements
-the core novel and library repository ports.
+`build_mysql_use_cases()` and `build_mysql_chapter_metadata_use_cases()` wire
+SQLAlchemy repositories using `NOVELS_DB_URL` (default:
+`mysql+mysqlconnector://root:test_pass@localhost:3306/auth`) for novel,
+library, and chapter metadata.
 
 For the shared MySQL, auth-api, and novels stack, run Compose from the
 [`albedo-infrastructure`](https://github.com/pulbhaba/albedo-infrastructure)

@@ -4,10 +4,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, String, delete, func, select
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, UniqueConstraint, delete, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
-from albedo_novels_core.domain.models import LibraryEntry, Novel, NovelId, NovelStatus, UserId
+from albedo_novels_core.domain.models import Chapter, ChapterId, LibraryEntry, Novel, NovelId, NovelStatus, UserId
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -35,6 +37,17 @@ class LibraryEntryRow(Base):
     user_id: Mapped[str] = mapped_column(String(255), primary_key=True)
     novel_id: Mapped[str] = mapped_column(ForeignKey("novels.id", ondelete="CASCADE"), primary_key=True)
     created_at: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class ChapterRow(Base):
+    __tablename__ = "chapters"
+    __table_args__ = (
+        UniqueConstraint("novel_id", "display_order", name="chapters_novel_order_unique"),
+    )
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    novel_id: Mapped[str] = mapped_column(ForeignKey("novels.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_order: Mapped[int] = mapped_column(nullable=False)
 
 
 SessionFactory = Callable[[], Session]
@@ -101,6 +114,41 @@ class SqlAlchemyLibraryRepository:
         with self._session_factory() as session:
             rows = session.scalars(select(LibraryEntryRow).where(LibraryEntryRow.user_id == str(user_id)).order_by(LibraryEntryRow.created_at.desc(), LibraryEntryRow.novel_id.asc())).all()
             return [LibraryEntry(UserId(row.user_id), NovelId(row.novel_id), row.created_at) for row in rows]
+
+
+class SqlAlchemyChapterRepository:
+    def __init__(self, session_factory: SessionFactory) -> None:
+        self._session_factory = session_factory
+
+    def save(self, chapter: Chapter) -> Chapter:
+        with self._session_factory() as session:
+            session.add(
+                ChapterRow(
+                    id=str(chapter.chapter_id),
+                    novel_id=str(chapter.novel_id),
+                    title=chapter.title,
+                    display_order=chapter.display_order,
+                )
+            )
+            session.commit()
+        return chapter
+
+    def list_by_novel(self, novel_id: NovelId) -> list[Chapter]:
+        with self._session_factory() as session:
+            rows = session.scalars(
+                select(ChapterRow)
+                .where(ChapterRow.novel_id == str(novel_id))
+                .order_by(ChapterRow.display_order.asc(), ChapterRow.id.asc())
+            ).all()
+            return [
+                Chapter(
+                    novel_id=NovelId(row.novel_id),
+                    chapter_id=ChapterId(row.id),
+                    title=row.title,
+                    display_order=row.display_order,
+                )
+                for row in rows
+            ]
 
 
 def _copy_novel_to_row(novel: Novel, row: NovelRow) -> None:
