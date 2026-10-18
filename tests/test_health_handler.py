@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from albedo_novels_core.domain.models import UserContext, UserId
+from albedo_novels_infrastructure.composition import build_http_strategies
 from albedo_novels_infrastructure.persistence.in_memory import InMemoryChapterRepository
 
 from albedo_novels_lambda.handler import lambda_handler
@@ -17,6 +18,7 @@ def auth_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AUTH_ISSUER", "https://auth.example.test")
     monkeypatch.setenv("AUTH_AUDIENCE", "albedo-novel-service")
     monkeypatch.setenv("AUTH_JWKS_URL", "https://auth.example.test/jwks")
+    monkeypatch.setattr("albedo_novels_lambda.handler.build_mysql_http_strategies", build_http_strategies)
 
 
 def _event(method: str, path: str, headers: Mapping[str, str] | None = None, query: dict[str, str] | None = None, body: dict[str, object] | None = None) -> dict[str, Any]:

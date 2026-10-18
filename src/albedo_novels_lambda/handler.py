@@ -7,7 +7,7 @@ from time import perf_counter
 from typing import Any
 
 from albedo_novels_infrastructure.auth import JwtAuthenticator
-from albedo_novels_infrastructure.composition import build_http_strategies
+from albedo_novels_infrastructure.composition import build_mysql_http_strategies
 from albedo_novels_infrastructure.config import cors_headers, cors_preflight_headers
 from albedo_novels_infrastructure.http import HttpApplication, HttpRequest, HttpResponse
 from albedo_novels_infrastructure.observability import configure_logging
@@ -77,7 +77,7 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
 
 def _application() -> HttpApplication:
-    return HttpApplication(JwtAuthenticator(), build_http_strategies())
+    return HttpApplication(JwtAuthenticator(), build_mysql_http_strategies())
 
 
 def _lambda_response(response: HttpResponse, request_headers: dict[str, str] | None = None) -> dict[str, Any]:

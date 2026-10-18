@@ -205,10 +205,12 @@ The baseline ER model and its auth-owned `users` boundary are documented in
 models in the same persistence package implement the `novels`,
 `library_entries`, and `chapters` tables.
 
-`build_mysql_use_cases()` and `build_mysql_chapter_metadata_use_cases()` wire
-SQLAlchemy repositories using `NOVELS_DB_URL` (default:
-`mysql+mysqlconnector://root:test_pass@localhost:3306/auth`) for novel,
-library, and chapter metadata.
+The Lambda runner uses `build_mysql_http_strategies()` to wire the novel,
+library, and chapter metadata routes to SQLAlchemy repositories using
+`NOVELS_DB_URL` (default:
+`mysql+mysqlconnector://root:test_pass@localhost:3306/auth`). The local runner
+uses the seeded novel data and in-memory metadata repositories. Chapter bodies
+remain behind the separate content storage port.
 
 For the shared MySQL, auth-api, and novels stack, run Compose from the
 [`albedo-infrastructure`](https://github.com/pulbhaba/albedo-infrastructure)
