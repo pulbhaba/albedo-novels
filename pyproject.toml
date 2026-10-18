@@ -9,6 +9,7 @@ description = "AWS Lambda compatible novel service for Albedo"
 requires-python = ">=3.12"
 dependencies = [
   "PyJWT[crypto]>=2.10,<3",
+  "boto3>=1.35.99,<2",
   "SQLAlchemy>=2.0,<3",
   "mysql-connector-python>=9.0,<10",
 ]

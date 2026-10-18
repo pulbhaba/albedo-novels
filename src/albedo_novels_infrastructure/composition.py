@@ -6,6 +6,8 @@ import os
 from uuid import uuid4
 
 from albedo_novels_core.application import ChapterContentUseCases, ChapterMetadataUseCases, NovelUseCases
+from albedo_novels_core.application.ports import ContentStoragePort
+from albedo_novels_infrastructure.aws.s3_content_storage import S3ContentStorage
 from albedo_novels_infrastructure.persistence.in_memory import (
     InMemoryChapterRepository,
     InMemoryContentStorage,
@@ -57,7 +59,10 @@ def build_http_strategies() -> dict[str, RequestStrategy]:
     return build_strategies(build_use_cases(), build_content_use_cases(), build_chapter_metadata_use_cases())
 
 
-def build_mysql_http_strategies(session_factory: SessionFactory | None = None) -> dict[str, RequestStrategy]:
+def build_mysql_http_strategies(
+    session_factory: SessionFactory | None = None,
+    content_storage: ContentStoragePort | None = None,
+) -> dict[str, RequestStrategy]:
     """Build Lambda HTTP strategies with SQL-backed novel and chapter metadata."""
     sessions = session_factory or _mysql_session_factory()
     novels = SqlAlchemyNovelRepository(sessions)
@@ -68,7 +73,11 @@ def build_mysql_http_strategies(session_factory: SessionFactory | None = None) -
             ids=UuidIdGenerator(),
             clock=SystemClock(),
         ),
-        ChapterContentUseCases(novels=novels, content=_LOCAL_CONTENT, clock=SystemClock()),
+        ChapterContentUseCases(
+            novels=novels,
+            content=content_storage if content_storage is not None else _s3_content_storage(),
+            clock=SystemClock(),
+        ),
         ChapterMetadataUseCases(
             novels=novels,
             chapters=SqlAlchemyChapterRepository(sessions),
@@ -105,6 +114,12 @@ def _mysql_session_factory() -> SessionFactory:
 
     engine = create_engine(os.getenv("NOVELS_DB_URL", "mysql+mysqlconnector://root:test_pass@localhost:3306/auth"))
     return sessionmaker(bind=engine, expire_on_commit=False)
+
+
+@lru_cache(maxsize=1)
+def _s3_content_storage() -> S3ContentStorage:
+    """Reuse the S3 client across requests handled by the same Lambda runtime."""
+    return S3ContentStorage.from_environment()
 
 
 class UuidIdGenerator:

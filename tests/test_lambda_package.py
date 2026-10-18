@@ -33,13 +33,20 @@ def test_lambda_package_contains_handler_and_runtime_dependencies(tmp_path: Path
     with zipfile.ZipFile(artifact) as archive:
         names = set(archive.namelist())
         assert "albedo_novels_lambda/handler.py" in names
+        assert "boto3/__init__.py" in names
         assert "jwt/__init__.py" in names
         assert "sqlalchemy/__init__.py" in names
         assert not any(name.startswith(("fastapi/", "uvicorn/", "starlette/")) for name in names)
 
         archive.extractall(tmp_path / "runtime")
 
-    isolated_environment = {"PATH": os.environ["PATH"]}
+    isolated_environment = {
+        "PATH": os.environ["PATH"],
+        "AWS_DEFAULT_REGION": "us-east-1",
+        "AWS_ACCESS_KEY_ID": "test-access-key",
+        "AWS_SECRET_ACCESS_KEY": "test-secret-key",
+        "NOVELS_CHAPTER_CONTENT_BUCKET": "novel-content-test-bucket",
+    }
     result = subprocess.run(
         [
             sys.executable,
@@ -54,4 +61,4 @@ def test_lambda_package_contains_handler_and_runtime_dependencies(tmp_path: Path
         text=True,
     )
 
-    assert result.stdout.strip() == "200"
+    assert result.stdout.strip().splitlines()[-1] == "200"
