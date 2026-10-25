@@ -41,6 +41,9 @@ suitable for the local stack and are pre-populated in
   Defaults to `albedo-novel-service`.
 - `AUTH_JWKS_URL` — JWKS endpoint used to verify token signatures. Defaults
   to `http://auth-api:8080/oauth2/jwks`, the in-stack auth-api endpoint.
+- `NOVELS_CHAPTER_CONTENT_DIR` — directory for local chapter version files.
+  Compose sets this to `/var/lib/albedo/novels/chapter-content` and mounts a
+  named Docker volume there.
 - `CORS_ALLOWED_ORIGINS` — comma-separated browser origins allowed by the local
   adapter and Lambda responses. Defaults to no allowed origins.
 
@@ -177,9 +180,11 @@ metadata; listing follows the novel's read permissions. Missing novels return
 `404`, forbidden actions return `403`, and invalid titles return `400`.
 
 Chapter bodies are kept behind a separate content storage port so they do not
-become part of the chapter metadata model. The in-memory adapter supports local
-development and tests; the Lambda composition stores immutable versions in S3.
-It supports these authenticated routes:
+become part of the chapter metadata model. Tests and direct local runs without
+`NOVELS_CHAPTER_CONTENT_DIR` use in-memory storage. The Compose local runner uses
+versioned JSON files under the configured directory, backed by the
+`novels-chapter-content` named volume. The Lambda composition stores immutable
+versions in S3. These adapters support the same authenticated routes:
 
 - `GET /novels/{novelId}/chapters/{chapterId}` returns the latest version,
   including its `body`.
@@ -216,14 +221,17 @@ The Lambda runner uses `build_mysql_http_strategies()` to wire the novel,
 library, and chapter metadata routes to SQLAlchemy repositories using
 `NOVELS_DB_URL` (default:
 `mysql+mysqlconnector://root:test_pass@localhost:3306/auth`). The local runner
-uses the seeded novel data and in-memory metadata repositories. Chapter bodies
-remain behind the separate content storage port. Lambda requires
+uses seeded novel data and in-memory metadata repositories. In the Compose
+stack, chapter bodies persist in the named Docker volume across container
+recreation; `docker compose down --volumes` removes that local data. Direct
+local runs without `NOVELS_CHAPTER_CONTENT_DIR` keep chapter bodies in memory.
+Lambda requires
 `NOVELS_CHAPTER_CONTENT_BUCKET` to name an existing S3 bucket; the production
 composition fails during initialization if the setting is missing or invalid.
 Provision the bucket in deployment infrastructure, enable encryption and
 public access blocking, and configure the Lambda execution role with the
-permissions above. Local development continues to use in-memory chapter
-content and does not require AWS credentials or this bucket setting.
+permissions above. The local filesystem adapter does not require AWS
+credentials or this bucket setting.
 
 For the shared MySQL, auth-api, and novels stack, run Compose from the
 [`albedo-infrastructure`](https://github.com/pulbhaba/albedo-infrastructure)

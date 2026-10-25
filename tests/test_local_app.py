@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import json
+from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import urlencode
 from unittest.mock import patch
@@ -433,7 +434,11 @@ def test_remove_favorite_requires_authentication() -> None:
     assert response.status_code == 401
 
 
-def test_chapter_content_routes_write_read_and_list_versions() -> None:
+def test_chapter_content_routes_write_read_and_list_versions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("NOVELS_CHAPTER_CONTENT_DIR", str(tmp_path))
     user = UserContext(UserId("user-1"))
     with patch("albedo_novels_infrastructure.auth.JwtVerifier.verify", return_value=user):
         first = _request("PUT", "/novels/novel-004/chapters/chapter-1", headers=_build_event_headers(), body={"body": "Draft"})
