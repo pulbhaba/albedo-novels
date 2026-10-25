@@ -5,12 +5,17 @@ from typing import Sequence
 
 from albedo_novels_core.application.ports import (
     Clock,
+    ChapterRepository,
     ContentStoragePort,
     IdGenerator,
     LibraryRepository,
     NovelRepository,
 )
 from albedo_novels_core.domain.models import (
+    Chapter,
+    ChapterContent,
+    ChapterContentMetadata,
+    ChapterId,
     LibraryEntry,
     LibraryNovel,
     Novel,
@@ -18,9 +23,6 @@ from albedo_novels_core.domain.models import (
     NovelStatus,
     UserContext,
     UserId,
-    ChapterContent,
-    ChapterContentMetadata,
-    ChapterId,
 )
 
 
@@ -223,6 +225,41 @@ class ChapterContentUseCases:
         novel = self._load_novel(novel_id)
         if not novel.is_readable_by(user):
             raise ForbiddenError("Novel is not readable by the current user.")
+
+    def _load_novel(self, novel_id: NovelId) -> Novel:
+        novel = self._novels.get(novel_id)
+        if novel is None:
+            raise NotFoundError("Novel was not found.")
+        return novel
+
+
+class ChapterMetadataUseCases:
+    """Authorize and coordinate chapter navigation metadata."""
+
+    def __init__(self, novels: NovelRepository, chapters: ChapterRepository, ids: IdGenerator) -> None:
+        self._novels = novels
+        self._chapters = chapters
+        self._ids = ids
+
+    def list_chapters(self, user: UserContext, novel_id: NovelId) -> list[Chapter]:
+        novel = self._load_novel(novel_id)
+        if not novel.is_readable_by(user):
+            raise ForbiddenError("Novel is not readable by the current user.")
+        return self._chapters.list_by_novel(novel_id)
+
+    def create_chapter(self, user: UserContext, novel_id: NovelId, title: str) -> Chapter:
+        novel = self._load_novel(novel_id)
+        if novel.author_id != user.user_id and not user.can_publish:
+            raise ForbiddenError("Only the novel owner or an editor can manage chapter metadata.")
+
+        existing = self._chapters.list_by_novel(novel_id)
+        chapter = Chapter(
+            novel_id=novel_id,
+            chapter_id=ChapterId(self._ids.new_id()),
+            title=title,
+            display_order=max((item.display_order for item in existing), default=0) + 1,
+        )
+        return self._chapters.save(chapter)
 
     def _load_novel(self, novel_id: NovelId) -> Novel:
         novel = self._novels.get(novel_id)

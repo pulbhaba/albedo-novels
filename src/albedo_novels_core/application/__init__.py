@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from albedo_novels_core.application.ports import (
     Clock,
+    ChapterRepository,
     ContentStoragePort,
     IdGenerator,
     LibraryRepository,
@@ -24,10 +25,12 @@ from albedo_novels_core.application.use_cases import (
     UpdateNovelCommand,
     NovelUseCases,
     ChapterContentUseCases,
+    ChapterMetadataUseCases,
 )
 
 __all__ = [
     "Clock",
+    "ChapterRepository",
     "ConflictError",
     "ContentStoragePort",
     "CreateNovelCommand",
@@ -42,5 +45,6 @@ __all__ = [
     "NovelRepository",
     "NovelUseCases",
     "ChapterContentUseCases",
+    "ChapterMetadataUseCases",
     "UpdateNovelCommand",
 ]

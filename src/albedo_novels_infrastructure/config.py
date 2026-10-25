@@ -10,6 +10,42 @@ ALLOWED_HEADERS = "Authorization, Content-Type"
 
 
 @dataclass(frozen=True)
+class ChapterContentStorageConfig:
+    bucket_name: str
+
+    @classmethod
+    def from_environment(
+        cls,
+        environment: Mapping[str, str] | None = None,
+    ) -> "ChapterContentStorageConfig":
+        values = os.environ if environment is None else environment
+        bucket_name = values.get("NOVELS_CHAPTER_CONTENT_BUCKET", "").strip()
+        if not bucket_name:
+            raise ValueError("Missing required chapter content configuration: NOVELS_CHAPTER_CONTENT_BUCKET")
+        valid_characters = "abcdefghijklmnopqrstuvwxyz0123456789.-"
+        valid_edge_characters = "abcdefghijklmnopqrstuvwxyz0123456789"
+        if (
+            not 3 <= len(bucket_name) <= 63
+            or bucket_name[0] not in valid_edge_characters
+            or bucket_name[-1] not in valid_edge_characters
+            or any(character not in valid_characters for character in bucket_name)
+            or ".." in bucket_name
+            or ".-" in bucket_name
+            or "-." in bucket_name
+            or _is_ipv4_address(bucket_name)
+            or bucket_name.startswith(("xn--", "sthree-", "amzn-s3-demo-"))
+            or bucket_name.endswith(("-s3alias", "--ol-s3"))
+        ):
+            raise ValueError("NOVELS_CHAPTER_CONTENT_BUCKET must be a valid S3 bucket name")
+        return cls(bucket_name=bucket_name)
+
+
+def _is_ipv4_address(value: str) -> bool:
+    parts = value.split(".")
+    return len(parts) == 4 and all(part.isdigit() and 0 <= int(part) <= 255 for part in parts)
+
+
+@dataclass(frozen=True)
 class RuntimeConfig:
     auth_issuer: str
     auth_audience: str

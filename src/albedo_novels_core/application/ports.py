@@ -12,6 +12,7 @@ class Authenticator(Protocol):
         ...
 
 from albedo_novels_core.domain.models import (
+    Chapter,
     ChapterContent,
     ChapterContentMetadata,
     ChapterId,
@@ -34,6 +35,16 @@ class ContentStoragePort(Protocol):
         ...
 
     def list_versions(self, novel_id: NovelId, chapter_id: ChapterId) -> list[ChapterContentMetadata]:
+        ...
+
+
+class ChapterRepository(Protocol):
+    """Persist chapter navigation metadata independently of chapter bodies."""
+
+    def save(self, chapter: Chapter) -> Chapter:
+        ...
+
+    def list_by_novel(self, novel_id: NovelId) -> list[Chapter]:
         ...
 
 

@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from albedo_novels_core.domain.models import UserContext, UserId
+from albedo_novels_infrastructure.persistence.in_memory import InMemoryChapterRepository
 
 from albedo_novels_local import app as local_app
 
@@ -444,3 +445,67 @@ def test_chapter_content_routes_write_read_and_list_versions() -> None:
     assert second.json()["version"] == 2
     assert latest.json()["body"] == "Revised"
     assert [item["version"] for item in versions.json()["items"]] == [2, 1]
+
+
+def test_chapter_metadata_routes_return_canonical_ids_in_display_order(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "albedo_novels_infrastructure.composition._LOCAL_CHAPTERS",
+        InMemoryChapterRepository(),
+    )
+    owner = UserContext(UserId("user-1"))
+    with patch("albedo_novels_infrastructure.auth.JwtVerifier.verify", return_value=owner):
+        first = _request(
+            "POST", "/novels/novel-004/chapters", headers=_build_event_headers(), body={"title": "Opening"}
+        )
+        second = _request(
+            "POST", "/novels/novel-004/chapters", headers=_build_event_headers(), body={"title": "The Journey"}
+        )
+        listed = _request("GET", "/novels/novel-004/chapters", headers=_build_event_headers())
+        content = _request(
+            "PUT",
+            f"/novels/novel-004/chapters/{first.json()['chapterId']}",
+            headers=_build_event_headers(),
+            body={"body": "Opening text"},
+        )
+
+    first_body = first.json()
+    second_body = second.json()
+    assert first.status_code == 201
+    assert set(first_body) == {"novelId", "chapterId", "title", "displayOrder"}
+    assert first_body["displayOrder"] == 1
+    assert second.status_code == 201
+    assert listed.status_code == 200
+    assert second_body["displayOrder"] == 2
+    assert [item["chapterId"] for item in listed.json()["items"]] == [
+        first_body["chapterId"], second_body["chapterId"]
+    ]
+    assert listed.json()["items"][0]["title"] == "Opening"
+    assert content.status_code == 201
+    assert content.json()["chapterId"] == first_body["chapterId"]
+
+
+def test_chapter_metadata_routes_validate_input_and_apply_permissions(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "albedo_novels_infrastructure.composition._LOCAL_CHAPTERS",
+        InMemoryChapterRepository(),
+    )
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("user-1")),
+    ):
+        invalid = _request("POST", "/novels/novel-004/chapters", headers=_build_event_headers(), body={"title": " "})
+        missing = _request("GET", "/novels/missing/chapters", headers=_build_event_headers())
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("reader-1")),
+    ):
+        forbidden = _request(
+            "POST", "/novels/novel-004/chapters", headers=_build_event_headers(), body={"title": "No access"}
+        )
+
+    assert invalid.status_code == 400
+    assert invalid.json()["error"] == "validation_error"
+    assert missing.status_code == 404
+    assert missing.json()["error"] == "not_found"
+    assert forbidden.status_code == 403
+    assert forbidden.json()["error"] == "forbidden"

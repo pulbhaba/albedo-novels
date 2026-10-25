@@ -7,6 +7,8 @@ from unittest.mock import patch
 import pytest
 
 from albedo_novels_core.domain.models import UserContext, UserId
+from albedo_novels_infrastructure.composition import build_http_strategies
+from albedo_novels_infrastructure.persistence.in_memory import InMemoryChapterRepository
 
 from albedo_novels_lambda.handler import lambda_handler
 
@@ -16,6 +18,7 @@ def auth_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AUTH_ISSUER", "https://auth.example.test")
     monkeypatch.setenv("AUTH_AUDIENCE", "albedo-novel-service")
     monkeypatch.setenv("AUTH_JWKS_URL", "https://auth.example.test/jwks")
+    monkeypatch.setattr("albedo_novels_lambda.handler.build_mysql_http_strategies", build_http_strategies)
 
 
 def _event(method: str, path: str, headers: Mapping[str, str] | None = None, query: dict[str, str] | None = None, body: dict[str, object] | None = None) -> dict[str, Any]:
@@ -377,3 +380,73 @@ def test_chapter_content_routes_write_read_and_list_versions() -> None:
     assert json.loads(second["body"])["version"] == 2
     assert json.loads(latest["body"])["body"] == "Revised"
     assert [item["version"] for item in json.loads(versions["body"])["items"]] == [2, 1]
+
+
+def test_chapter_metadata_routes_return_canonical_ids_in_display_order(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "albedo_novels_infrastructure.composition._LOCAL_CHAPTERS",
+        InMemoryChapterRepository(),
+    )
+    owner = UserContext(UserId("user-1"))
+    headers = {"authorization": "Bearer access-token"}
+    with patch("albedo_novels_infrastructure.auth.JwtVerifier.verify", return_value=owner):
+        first = lambda_handler(
+            _event("POST", "/novels/novel-004/chapters", headers=headers, body={"title": "Opening"}), None
+        )
+        second = lambda_handler(
+            _event("POST", "/novels/novel-004/chapters", headers=headers, body={"title": "The Journey"}), None
+        )
+        listed = lambda_handler(_event("GET", "/novels/novel-004/chapters", headers=headers), None)
+        chapter_id = json.loads(first["body"])["chapterId"]
+        content = lambda_handler(
+            _event(
+                "PUT", f"/novels/novel-004/chapters/{chapter_id}", headers=headers, body={"body": "Opening text"}
+            ),
+            None,
+        )
+
+    first_body = json.loads(first["body"])
+    second_body = json.loads(second["body"])
+    listed_body = json.loads(listed["body"])
+    assert first["statusCode"] == 201
+    assert set(first_body) == {"novelId", "chapterId", "title", "displayOrder"}
+    assert first_body["displayOrder"] == 1
+    assert second["statusCode"] == 201
+    assert listed["statusCode"] == 200
+    assert second_body["displayOrder"] == 2
+    assert [item["chapterId"] for item in listed_body["items"]] == [
+        first_body["chapterId"], second_body["chapterId"]
+    ]
+    assert listed_body["items"][0]["title"] == "Opening"
+    assert content["statusCode"] == 201
+    assert json.loads(content["body"])["chapterId"] == first_body["chapterId"]
+
+
+def test_chapter_metadata_routes_validate_input_and_apply_permissions(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "albedo_novels_infrastructure.composition._LOCAL_CHAPTERS",
+        InMemoryChapterRepository(),
+    )
+    headers = {"authorization": "Bearer access-token"}
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("user-1")),
+    ):
+        invalid = lambda_handler(
+            _event("POST", "/novels/novel-004/chapters", headers=headers, body={"title": " "}), None
+        )
+        missing = lambda_handler(_event("GET", "/novels/missing/chapters", headers=headers), None)
+    with patch(
+        "albedo_novels_infrastructure.auth.JwtVerifier.verify",
+        return_value=UserContext(UserId("reader-1")),
+    ):
+        forbidden = lambda_handler(
+            _event("POST", "/novels/novel-004/chapters", headers=headers, body={"title": "No access"}), None
+        )
+
+    assert invalid["statusCode"] == 400
+    assert json.loads(invalid["body"])["error"] == "validation_error"
+    assert missing["statusCode"] == 404
+    assert json.loads(missing["body"])["error"] == "not_found"
+    assert forbidden["statusCode"] == 403
+    assert json.loads(forbidden["body"])["error"] == "forbidden"

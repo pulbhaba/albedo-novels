@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from albedo_novels_core.domain.models import (
     ChapterContent,
     ChapterContentMetadata,
+    Chapter,
     ChapterId,
     LibraryEntry,
     Novel,
@@ -35,6 +36,21 @@ class InMemoryContentStorage:
     def list_versions(self, novel_id: NovelId, chapter_id: ChapterId) -> list[ChapterContentMetadata]:
         versions = [item for item in self._content.values() if item.novel_id == novel_id and item.chapter_id == chapter_id]
         return [item.metadata() for item in sorted(versions, key=lambda item: item.version, reverse=True)]
+
+
+class InMemoryChapterRepository:
+    """Store chapter navigation metadata independently from chapter bodies."""
+
+    def __init__(self) -> None:
+        self._chapters: dict[tuple[NovelId, ChapterId], Chapter] = {}
+
+    def save(self, chapter: Chapter) -> Chapter:
+        self._chapters[(chapter.novel_id, chapter.chapter_id)] = chapter
+        return chapter
+
+    def list_by_novel(self, novel_id: NovelId) -> list[Chapter]:
+        chapters = (chapter for chapter in self._chapters.values() if chapter.novel_id == novel_id)
+        return sorted(chapters, key=lambda chapter: (chapter.display_order, chapter.chapter_id))
 
 
 class InMemoryNovelRepository:
