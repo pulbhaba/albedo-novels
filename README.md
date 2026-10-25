@@ -177,8 +177,9 @@ metadata; listing follows the novel's read permissions. Missing novels return
 `404`, forbidden actions return `403`, and invalid titles return `400`.
 
 Chapter bodies are kept behind a separate content storage port so they do not
-become part of the chapter metadata model. The initial in-memory adapter
-supports these authenticated routes:
+become part of the chapter metadata model. The in-memory adapter supports local
+development and tests; the Lambda composition stores immutable versions in S3.
+It supports these authenticated routes:
 
 - `GET /novels/{novelId}/chapters/{chapterId}` returns the latest version,
   including its `body`.
@@ -189,8 +190,14 @@ supports these authenticated routes:
 
 Published chapter content is readable by any authenticated reader; draft
 content is readable by its owner or an editor/admin. Owners and editor/admin
-users may write content. S3 storage and presigned URLs remain a follow-up to
-the storage decision in issue #22.
+users may write content. S3 uses keys shaped like
+`novels/{novelId}/chapters/{chapterId}/versions/{version}.json`. Each object
+stores the body and author/timestamp metadata; the API response is unchanged.
+The Lambda role needs `s3:PutObject` and `s3:GetObject` on
+`arn:aws:s3:::BUCKET/novels/*`, plus `s3:ListBucket` on the bucket, restricted
+to the `novels/*` prefix. No delete permission is required. If the bucket uses
+a customer-managed KMS key, grant the Lambda role `kms:GenerateDataKey` for
+writes and `kms:Decrypt` for reads, scoped to that key.
 
 ## SQLAlchemy persistence
 
@@ -210,7 +217,13 @@ library, and chapter metadata routes to SQLAlchemy repositories using
 `NOVELS_DB_URL` (default:
 `mysql+mysqlconnector://root:test_pass@localhost:3306/auth`). The local runner
 uses the seeded novel data and in-memory metadata repositories. Chapter bodies
-remain behind the separate content storage port.
+remain behind the separate content storage port. Lambda requires
+`NOVELS_CHAPTER_CONTENT_BUCKET` to name an existing S3 bucket; the production
+composition fails during initialization if the setting is missing or invalid.
+Provision the bucket in deployment infrastructure, enable encryption and
+public access blocking, and configure the Lambda execution role with the
+permissions above. Local development continues to use in-memory chapter
+content and does not require AWS credentials or this bucket setting.
 
 For the shared MySQL, auth-api, and novels stack, run Compose from the
 [`albedo-infrastructure`](https://github.com/pulbhaba/albedo-infrastructure)
