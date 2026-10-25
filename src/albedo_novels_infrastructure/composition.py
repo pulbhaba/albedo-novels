@@ -8,6 +8,9 @@ from uuid import uuid4
 from albedo_novels_core.application import ChapterContentUseCases, ChapterMetadataUseCases, NovelUseCases
 from albedo_novels_core.application.ports import ContentStoragePort
 from albedo_novels_infrastructure.aws.s3_content_storage import S3ContentStorage
+from albedo_novels_infrastructure.http.application import RequestStrategy
+from albedo_novels_infrastructure.http.strategies import build_strategies
+from albedo_novels_infrastructure.persistence.file_content_storage import FileContentStorage
 from albedo_novels_infrastructure.persistence.in_memory import (
     InMemoryChapterRepository,
     InMemoryContentStorage,
@@ -20,17 +23,11 @@ from albedo_novels_infrastructure.persistence.sqlalchemy import (
     SqlAlchemyLibraryRepository,
     SqlAlchemyNovelRepository,
 )
-from albedo_novels_infrastructure.http.application import RequestStrategy
-from albedo_novels_infrastructure.http.strategies import build_strategies
 
 
 _LOCAL_LIBRARY = InMemoryLibraryRepository()
 _LOCAL_CONTENT = InMemoryContentStorage()
 _LOCAL_CHAPTERS = InMemoryChapterRepository()
-
-
-def _repositories() -> tuple[object, object]:
-    return dao_test(), _LOCAL_CONTENT
 
 
 def build_use_cases() -> NovelUseCases:
@@ -42,9 +39,12 @@ def build_use_cases() -> NovelUseCases:
     )
 
 
-def build_content_use_cases() -> ChapterContentUseCases:
-    novels, content = _repositories()
-    return ChapterContentUseCases(novels=novels, content=content, clock=SystemClock())
+def build_content_use_cases(content_storage: ContentStoragePort | None = None) -> ChapterContentUseCases:
+    return ChapterContentUseCases(
+        novels=dao_test(),
+        content=content_storage if content_storage is not None else _local_content_storage(),
+        clock=SystemClock(),
+    )
 
 
 def build_chapter_metadata_use_cases() -> ChapterMetadataUseCases:
@@ -55,8 +55,12 @@ def build_chapter_metadata_use_cases() -> ChapterMetadataUseCases:
     )
 
 
-def build_http_strategies() -> dict[str, RequestStrategy]:
-    return build_strategies(build_use_cases(), build_content_use_cases(), build_chapter_metadata_use_cases())
+def build_http_strategies(content_storage: ContentStoragePort | None = None) -> dict[str, RequestStrategy]:
+    return build_strategies(
+        build_use_cases(),
+        build_content_use_cases(content_storage),
+        build_chapter_metadata_use_cases(),
+    )
 
 
 def build_mysql_http_strategies(
@@ -120,6 +124,18 @@ def _mysql_session_factory() -> SessionFactory:
 def _s3_content_storage() -> S3ContentStorage:
     """Reuse the S3 client across requests handled by the same Lambda runtime."""
     return S3ContentStorage.from_environment()
+
+
+def _local_content_storage() -> ContentStoragePort:
+    directory = os.getenv("NOVELS_CHAPTER_CONTENT_DIR", "").strip()
+    if not directory:
+        return _LOCAL_CONTENT
+    return _file_content_storage(directory)
+
+
+@lru_cache(maxsize=8)
+def _file_content_storage(directory: str) -> FileContentStorage:
+    return FileContentStorage(directory)
 
 
 class UuidIdGenerator:
