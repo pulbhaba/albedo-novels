@@ -385,7 +385,13 @@ def test_add_favorite_rejects_an_unreadable_draft() -> None:
     assert response.json()["error"] == "forbidden"
 
 
-def test_list_library_returns_only_current_users_readable_favorites() -> None:
+def test_list_library_returns_only_current_users_readable_favorites(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "albedo_novels_infrastructure.composition.SystemClock.utcnow_iso",
+        lambda self: "2026-08-21T00:00:00+00:00",
+    )
     user = UserContext(UserId("local-library-reader"))
     with patch(
         "albedo_novels_infrastructure.auth.JwtVerifier.verify",
