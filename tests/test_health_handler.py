@@ -309,7 +309,11 @@ def test_add_favorite_rejects_an_unreadable_draft() -> None:
     assert json.loads(response["body"])["error"] == "forbidden"
 
 
-def test_list_library_returns_current_users_favorites() -> None:
+def test_list_library_returns_current_users_favorites(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "albedo_novels_infrastructure.composition.SystemClock.utcnow_iso",
+        lambda self: "2026-08-21T00:00:00+00:00",
+    )
     event = _event(
         "PUT",
         "/library/novel-002/favorite",
